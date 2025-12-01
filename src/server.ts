@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -12,6 +13,16 @@ const app = express();
 const PORT = process.env.PORT;
 
 dotenv.config();
+
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true, // Allow cookies to be sent
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Middleware
 app.use(express.json());
