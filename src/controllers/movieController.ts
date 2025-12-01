@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
-import { Movie } from "../models/schemasMovie/MovieSchemaMain";
+import { Movie } from "../models/schemasMovie/MovieSchemaMain.js";
 
 // =============================
 // Add movie

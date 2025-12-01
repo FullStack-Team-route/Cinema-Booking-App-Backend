@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import { LatestTrailerSchema } from "./LatestTrailerSchema";
-import { SlotSchema } from "./Slot Schema";
-import { PersonSchema } from "./Person Schema";
+import { LatestTrailerSchema } from "./LatestTrailerSchema.js";
+import { SlotSchema } from "./Slot Schema.js";
+import { PersonSchema } from "./Person Schema.js";
 
 // TypeScript interface that represents a Movie document
 export interface IMovie extends mongoose.Document {

@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { PersonSchema } from "./Person Schema";
+import { PersonSchema } from "./Person Schema.js";
 
 export const LatestTrailerSchema = new mongoose.Schema(
   {
