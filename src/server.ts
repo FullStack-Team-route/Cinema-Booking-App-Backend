@@ -14,10 +14,10 @@ const PORT = process.env.PORT;
 
 dotenv.config();
 
-
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    // Allow frontend URL from env, fallback to localhost:3000
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true, // Allow cookies to be sent
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
