@@ -1,46 +1,31 @@
-import express, { Request, Response } from "express";
-import multer from "multer";
+import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import { Movie } from "../models/schemasMovie/MovieSchemaMain";
 
-const router = express.Router();
-
-// =============================
-// Multer storage
-// =============================
-const storage = multer.diskStorage({
-  destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-    cb(null, "uploads")
-  },
-  filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + ext);
-  },
-});
-
-const upload = multer({ storage });
-
 // =============================
 // Add movie
 // =============================
-router.post("/addMovie", upload.single("poster"), async (req: Request, res: Response) => {
+export const addMovie = async (req: Request, res: Response) => {
   try {
     const data: any = req.body;
-    if (req.file) data.poster = "/uploads/" + req.file.filename;
+    const file = (req as any).file;
+    if (file) data.poster = "/uploads/" + file.filename;
 
     const movie = await Movie.create(data);
     res.status(201).json(movie);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 // =============================
 // Get paginated movies
 // =============================
-router.get("/allMovies", async (req: Request<{}, {}, {}, { page?: string }>, res: Response) => {
+export const getAllMovies = async (
+  req: Request<{}, {}, {}, { page?: string }>,
+  res: Response
+) => {
   try {
     const page = parseInt(req.query.page || "1");
     const limit = 20;
@@ -54,41 +39,44 @@ router.get("/allMovies", async (req: Request<{}, {}, {}, { page?: string }>, res
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 // =============================
 // Update movie
 // =============================
-router.put("/updateMovie/:id", upload.single("poster"), async (req: Request, res: Response) => {
+export const updateMovie = async (req: Request, res: Response) => {
   try {
     const movie = await Movie.findById(req.params.id);
     if (!movie) return res.status(404).json({ error: "Movie not found" });
 
     const data: any = req.body;
+    const file = (req as any).file;
 
-    if (req.file && movie.poster) {
-      const oldPath = path.join(__dirname, "../../", movie.poster);
+    if (file && movie.poster) {
+      const oldPath = path.join(process.cwd(), movie.poster);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      data.poster = "/uploads/" + req.file.filename;
+      data.poster = "/uploads/" + file.filename;
     }
 
-    const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, { new: true });
+    const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
+      new: true,
+    });
     res.status(200).json(updatedMovie);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 // =============================
 // Delete movie
 // =============================
-router.delete("/deleteMovie/:id", async (req: Request, res: Response) => {
+export const deleteMovie = async (req: Request, res: Response) => {
   try {
     const movie = await Movie.findById(req.params.id);
     if (!movie) return res.status(404).json({ error: "Movie not found" });
 
     if (movie.poster) {
-      const posterPath = path.join(__dirname, "../../", movie.poster);
+      const posterPath = path.join(process.cwd(), movie.poster);
       if (fs.existsSync(posterPath)) fs.unlinkSync(posterPath);
     }
 
@@ -97,6 +85,4 @@ router.delete("/deleteMovie/:id", async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
-
-export default router;
+};
