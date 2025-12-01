@@ -30,8 +30,7 @@ router.post(
     body("phoneNumber").notEmpty().withMessage("Phone number is required"),
     body("birthDate")
       .isISO8601()
-      .toDate()
-      .withMessage("Valid birth date is required"),
+      .withMessage("Valid birth date is required (ISO8601 format)"),
     body("password")
       .isLength({ min: 6 })
       .withMessage("Password must be at least 6 characters"),

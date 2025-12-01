@@ -6,7 +6,7 @@ export interface UserTypes {
   username: string;
   email: string;
   phoneNumber: string;
-  birthDate: Date;
+  birthDate: string;
   password: string;
   role?: "user" | "admin";
 }
@@ -33,7 +33,7 @@ const userSchema = new mongoose.Schema<UserDoc>(
       trim: true,
     },
     phoneNumber: { type: String, required: true, trim: true },
-    birthDate: { type: Date, required: true },
+    birthDate: { type: String, required: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
   },
