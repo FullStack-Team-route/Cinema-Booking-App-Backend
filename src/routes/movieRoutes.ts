@@ -1,6 +1,5 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
 import {
   addMovie,
   getAllMovies,
@@ -8,22 +7,9 @@ import {
   deleteMovie,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
+import { storage } from "../config/cloudinary.js";
 
 const router = express.Router();
-
-// =============================
-// Multer storage
-// =============================
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, "uploads");
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + ext);
-  },
-});
 
 const upload = multer({ storage });
 

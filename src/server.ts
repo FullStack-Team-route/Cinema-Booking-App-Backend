@@ -36,6 +36,9 @@ await connectDB();
 app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
 
+// Serve uploaded files statically
+app.use("/uploads", express.static("uploads"));
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });

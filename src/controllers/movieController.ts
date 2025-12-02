@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
-import path from "path";
-import fs from "fs";
 import { Movie } from "../models/Movie.js";
+import { deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
 
 // =============================
 // Add movie
@@ -9,8 +8,34 @@ import { Movie } from "../models/Movie.js";
 export const addMovie = async (req: Request, res: Response) => {
   try {
     const data: any = req.body;
+
+    // convert Json string to object
+
+    const fieldsToParse = [
+      "directors",
+      "writers",
+      "cast",
+      "producers",
+      "slots",
+      "trailer",
+      "genres",
+      "auditoriums",
+    ];
+
+    fieldsToParse.forEach((field) => {
+      if (data[field]) {
+        try {
+          data[field] = JSON.parse(data[field]);
+        } catch (error) {
+          console.error(`Error parsing ${field}:`, error);
+          data[field] = [];
+        }
+      }
+    });
+
+    // adding poster
     const file = (req as any).file;
-    if (file) data.poster = "/uploads/" + file.filename;
+    if (file) data.poster = file.path; // Cloudinary URL
 
     const movie = await Movie.create(data);
     res.status(201).json({ statusMsg: "success", movie });
@@ -55,9 +80,14 @@ export const updateMovie = async (req: Request, res: Response) => {
     const file = (req as any).file;
 
     if (file && movie.poster) {
-      const oldPath = path.join(process.cwd(), movie.poster);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      data.poster = "/uploads/" + file.filename;
+      // Delete old image from Cloudinary
+      try {
+        const publicId = extractPublicId(movie.poster);
+        await deleteFromCloudinary(publicId);
+      } catch (error) {
+        console.error("Error deleting old image from Cloudinary:", error);
+      }
+      data.poster = file.path; // New Cloudinary URL
     }
 
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
@@ -78,8 +108,13 @@ export const deleteMovie = async (req: Request, res: Response) => {
     if (!movie) return res.status(404).json({ error: "Movie not found" });
 
     if (movie.poster) {
-      const posterPath = path.join(process.cwd(), movie.poster);
-      if (fs.existsSync(posterPath)) fs.unlinkSync(posterPath);
+      // Delete image from Cloudinary
+      try {
+        const publicId = extractPublicId(movie.poster);
+        await deleteFromCloudinary(publicId);
+      } catch (error) {
+        console.error("Error deleting image from Cloudinary:", error);
+      }
     }
 
     await Movie.findByIdAndDelete(req.params.id);

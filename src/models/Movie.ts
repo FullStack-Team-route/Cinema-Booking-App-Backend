@@ -61,7 +61,7 @@ const SlotSchema = new mongoose.Schema<ISlot>(
 export const MovieSchema = new mongoose.Schema(
   {
     // Basic Movie Info
-    title: { type: String, required: true, index: true },
+    title: { type: String, required: true },
     originalTitle: String, // for foreign movies
     description: { type: String, required: true },
     shortDescription: String, // brief summary for cards
