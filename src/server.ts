@@ -34,7 +34,7 @@ await connectDB();
 
 // Routes
 app.use("/api/auth", userRoutes);
-app.use("/movies", movieRoutes);
+app.use("/api/movies", movieRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");

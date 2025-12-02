@@ -15,7 +15,9 @@ export const registerUser = async (
     const existing = await User.findOne({ email });
 
     if (existing)
-      return res.status(400).json({ message: "Email is already in use" });
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", message: "Email is already in use" });
 
     const user = new User({
       fullName,
@@ -38,6 +40,7 @@ export const registerUser = async (
     });
 
     res.status(201).json({
+      statusMsg: "success",
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -62,12 +65,17 @@ export const loginUser = async (
 
     // check if user exist
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user)
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Invalid credentials" });
 
     // check password
     const isPasswordMatching = await user.comparePassword(password);
     if (!isPasswordMatching)
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Invalid credentials" });
 
     const token = generateToken({ id: user._id, role: user.role }, "7d");
 
@@ -80,6 +88,7 @@ export const loginUser = async (
     });
 
     res.status(200).json({
+      statusMsg: "success",
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -103,7 +112,9 @@ export const logoutUser = async (
     // Clear the authentication cookie
     res.clearCookie("token");
 
-    res.status(200).json({ message: "Logout successful" });
+    res
+      .status(200)
+      .json({ statusMsg: "success", message: "Logout successful" });
   } catch (error) {
     next(error);
   }
@@ -118,41 +129,50 @@ export const updatePassword = async (
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Unauthorized" });
     }
 
     const { currentPassword, newPassword } = req.body;
 
     // Validate input
     if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ message: "Current password and new password are required" });
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Current password and new password are required",
+      });
     }
 
     // Check new password length (minimum 6 characters)
     if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "New password must be at least 6 characters long" });
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "New password must be at least 6 characters long",
+      });
     }
 
     // Find user with password field
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "User not found" });
     }
 
     // Verify current password
     const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Current password is incorrect" });
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Current password is incorrect" });
     }
 
     // Check if new password is different from current password
     const isSamePassword = await user.comparePassword(newPassword);
     if (isSamePassword) {
       return res.status(400).json({
+        statusMsg: "fail",
         message: "New password must be different from current password",
       });
     }
@@ -161,7 +181,9 @@ export const updatePassword = async (
     user.password = newPassword;
     await user.save();
 
-    res.status(200).json({ message: "Password updated successfully" });
+    res
+      .status(200)
+      .json({ statusMsg: "success", message: "Password updated successfully" });
   } catch (error) {
     next(error);
   }
@@ -176,16 +198,21 @@ export const getCurrentUser = async (
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Unauthorized" });
     }
 
     // Get user data (exclude password)
     const user = await User.findById(userId).select("-password");
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "User not found" });
     }
 
     res.status(200).json({
+      statusMsg: "success",
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -210,7 +237,9 @@ export const updateUser = async (
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ statusMsg: "fail", message: "Unauthorized" });
     }
 
     // Fields allowed to be updated (excluding password and role)
@@ -233,7 +262,9 @@ export const updateUser = async (
 
     // Check if there are any valid updates
     if (Object.keys(filteredUpdates).length === 0) {
-      return res.status(400).json({ message: "No valid fields to update" });
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", message: "No valid fields to update" });
     }
 
     // Check for email uniqueness if email is being updated
@@ -243,7 +274,9 @@ export const updateUser = async (
         _id: { $ne: userId },
       });
       if (existingUser) {
-        return res.status(400).json({ message: "Email is already in use" });
+        return res
+          .status(400)
+          .json({ statusMsg: "fail", message: "Email is already in use" });
       }
     }
 
@@ -254,7 +287,9 @@ export const updateUser = async (
         _id: { $ne: userId },
       });
       if (existingUser) {
-        return res.status(400).json({ message: "Username is already taken" });
+        return res
+          .status(400)
+          .json({ statusMsg: "fail", message: "Username is already taken" });
       }
     }
 
@@ -265,10 +300,13 @@ export const updateUser = async (
     }).select("-password");
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "User not found" });
     }
 
     res.status(200).json({
+      statusMsg: "success",
       message: "User updated successfully",
       user: {
         id: user._id,
@@ -300,9 +338,13 @@ export const getUsers = async (
       User.countDocuments(),
     ]);
 
-    res
-      .status(200)
-      .json({ data: users, page, total, pages: Math.ceil(total / limit) });
+    res.status(200).json({
+      statusMsg: "success",
+      data: users,
+      page,
+      total,
+      pages: Math.ceil(total / limit),
+    });
   } catch (error) {
     next(error);
   }

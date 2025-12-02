@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
-import { Movie } from "../models/schemasMovie/MovieSchemaMain.js";
+import { Movie } from "../models/Movie.js";
 
 // =============================
 // Add movie
@@ -13,31 +13,33 @@ export const addMovie = async (req: Request, res: Response) => {
     if (file) data.poster = "/uploads/" + file.filename;
 
     const movie = await Movie.create(data);
-    res.status(201).json(movie);
+    res.status(201).json({ statusMsg: "success", movie });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
 
 // =============================
 // Get paginated movies
 // =============================
-export const getAllMovies = async (
-  req: Request<{}, {}, {}, { page?: string }>,
-  res: Response
-) => {
+export const getAllMovies = async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page || "1");
-    const limit = 20;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 10, type } = req.query as any;
+    const filter: any = {};
+    if (type) filter.type = type;
+    const movies = await Movie.find(filter)
+      .skip((+page - 1) * +limit)
+      .limit(+limit)
+      .sort({ createdAt: -1 });
 
-    const movies = await Movie.find().skip(skip).limit(limit);
-    const totalMovies = await Movie.countDocuments();
-    const totalPages = Math.ceil(totalMovies / limit);
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
 
-    res.status(200).json({ page, totalPages, totalMovies, movies });
+    res
+      .status(200)
+      .json({ statusMsg: "success", page, totalPages, total, movies });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
 
@@ -61,9 +63,9 @@ export const updateMovie = async (req: Request, res: Response) => {
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
       new: true,
     });
-    res.status(200).json(updatedMovie);
+    res.status(200).json({ statusMsg: "success", updatedMovie });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
 
@@ -81,8 +83,10 @@ export const deleteMovie = async (req: Request, res: Response) => {
     }
 
     await Movie.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Movie deleted successfully" });
+    res
+      .status(200)
+      .json({ statusMsg: "success", message: "Movie deleted successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
