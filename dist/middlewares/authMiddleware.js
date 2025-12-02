@@ -1,0 +1,56 @@
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
+export const protect = async (req, res, next) => {
+    try {
+        // Get token from cookies
+        const token = req.cookies?.token;
+        // If no token found in cookies
+        if (!token) {
+            return res.status(401).json({ message: "Not authorized, no token" });
+        }
+        // Verify token
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({ message: "JWT_SECRET is not configured" });
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // Get user from token (exclude password)
+        const user = await User.findById(decoded.id).select("-password");
+        if (!user) {
+            return res.status(401).json({ message: "User not found" });
+        }
+        // Attach user to request object
+        req.user = {
+            id: user._id,
+            ...(user.role && { role: user.role }),
+        };
+        next();
+    }
+    catch (error) {
+        if (error instanceof jwt.JsonWebTokenError) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+        if (error instanceof jwt.TokenExpiredError) {
+            return res.status(401).json({ message: "Token expired" });
+        }
+        return res.status(401).json({ message: "Not authorized" });
+    }
+};
+export const adminOnly = async (req, res, next) => {
+    try {
+        // First, ensure user is authenticated
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "Unauthorized - No user found" });
+        }
+        // Check if user has admin role
+        if (req.user.role !== "admin") {
+            return res
+                .status(403)
+                .json({ message: "Access denied - Admin role required" });
+        }
+        next();
+    }
+    catch (error) {
+        return res.status(500).json({ message: "Server error during admin check" });
+    }
+};
+//# sourceMappingURL=authMiddleware.js.map

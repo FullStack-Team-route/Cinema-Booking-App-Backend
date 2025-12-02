@@ -7,6 +7,9 @@ import {
   updateUser,
   updatePassword,
   getUsers,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
 } from "../controllers/userController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { body } from "express-validator";
@@ -101,5 +104,50 @@ router.put(
 
 // Admin only routes (authentication + admin role required)
 router.get("/users", protect, adminOnly, getUsers);
+
+// Password reset routes (no authentication required)
+router.post(
+  "/forgot-password",
+  [
+    body("email")
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+  ],
+  forgotPassword
+);
+
+router.post(
+  "/verify-otp",
+  [
+    body("email")
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+    body("otp")
+      .isLength({ min: 6, max: 6 })
+      .withMessage("OTP must be 6 digits")
+      .isNumeric()
+      .withMessage("OTP must contain only numbers"),
+  ],
+  verifyOtp
+);
+
+router.post(
+  "/reset-password",
+  [
+    body("email")
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+    body("currentPassword")
+      .notEmpty()
+      .withMessage("Current password is required"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("New password must be at least 6 characters"),
+  ],
+  resetPassword
+);
 
 export default router;

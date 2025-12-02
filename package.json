@@ -25,6 +25,7 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "path": "^0.12.7",
+    "resend": "^6.5.2",
     "stripe": "^20.0.0",
     "uuid": "^13.0.0"
   },
@@ -37,6 +38,7 @@
     "@types/mongoose": "^5.11.96",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.1",
+    "@types/nodemailer": "^7.0.4",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
