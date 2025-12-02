@@ -4,9 +4,8 @@ import cors from "cors";
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-
+import bookingRoutes from "./routes/BookingRoutes.js"
 import cookieParser from "cookie-parser";
-
 import dotenv from "dotenv";
 
 const app = express();
@@ -35,6 +34,7 @@ await connectDB();
 // Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
