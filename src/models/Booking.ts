@@ -13,15 +13,31 @@ export interface IBooking extends Document {
     year?: number;
     rating?: number;
   };
-  showtime: string;
-  auditorium: string;
-  seats: string[]; 
+
+  // ---------- Slot ----------
+  slot: {
+    date: string;       
+    time: string;       
+    auditorium: string; 
+  };
+
+  // ---------- Payment ----------
+  payment: {
+    ticketPrice: number;    
+    totalPrice: number;     
+    method: string;        
+    status: string;         
+    transactionId?: string; 
+  };
+
+  seats: string[];
 }
 
 const bookingSchema = new Schema<IBooking>({
   movieId: { type: Schema.Types.ObjectId, ref: 'Movie', required: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   customer: { type: String, required: true },
+
   movie: {
     id: { type: Schema.Types.ObjectId, required: true },
     title: { type: String, required: true },
@@ -31,12 +47,26 @@ const bookingSchema = new Schema<IBooking>({
     year: { type: Number },
     rating: { type: Number }
   },
-  showtime: { type: String, required: true },
-  auditorium: { type: String, required: true },
+
+  // ---------- Slot ----------
+  slot: {
+    date: { type: String, required: true },
+    time: { type: String, required: true },
+    auditorium: { type: String, required: true }
+  },
+
+  // ---------- Payment ----------
+  payment: {
+    ticketPrice: { type: Number, required: true },
+    totalPrice: { type: Number, required: true },
+    method: { type: String, required: true },
+    status: { type: String, required: true },
+    transactionId: { type: String }
+  },
+
   seats: { type: [String], required: true }
+
 }, { timestamps: true });
-
-
 
 export const Booking = mongoose.model<IBooking>('Booking', bookingSchema);
 export default Booking;

@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 
 // Interfaces for better type safety
-interface ISlot {
+export interface ISlot {
+  save(): unknown;
+  bookedSeats: any;
   date: Date;
   time: string;
   ampm: "AM" | "PM";

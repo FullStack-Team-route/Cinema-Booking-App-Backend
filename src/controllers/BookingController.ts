@@ -1,64 +1,96 @@
-import { Movie } from '../models/Movie.js';
-import Slot, { type ISlot } from '../models/Slot.js';
+import { Movie, type ISlot } from '../models/Movie.js';
 import Booking from '../models/Booking.js';
 import type { Request, Response } from 'express';
 
-
 export const createBooking = async (req: Request, res: Response) => {
   try {
-    const { movieId, userId, customer, movieData, showtime, auditorium, seats } = req.body as {
-      movieId: string;
-      userId: string;
-      customer: string;
-      movieData: any;
-      showtime: string;
-      auditorium: string;
-      seats: string[];
-    };
+    const { 
+      movieId, 
+      userId, 
+      customer, 
+      movieData, 
+      slot,       
+      payment,    
+      seats 
+    } = req.body;
 
-    if (!movieId || !userId || !customer || !movieData || !showtime || !auditorium || !seats) {
+    // ---------- Validation ----------
+    if (!movieId || !userId || !customer || !movieData || !slot || !payment || !seats) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
+    const { date, time, auditorium } = slot;
+
+    if (!date || !time || !auditorium)
+      return res.status(400).json({ message: 'Slot data is incomplete' });
+
+    if (!payment.ticketPrice || !payment.totalPrice || !payment.method || !payment.status)
+      return res.status(400).json({ message: 'Payment data is incomplete' });
+
+    // ---------- Check movie existence ----------
     const movieExists = await Movie.findById(movieId);
     if (!movieExists) return res.status(404).json({ message: 'Movie not found' });
 
-    const slot: ISlot | null = await Slot.findOne({ movieId, showtime, auditorium });
-    if (!slot) return res.status(404).json({ message: 'Showtime slot not found' });
+    // ---------- Find Slot ----------
+    const foundSlot: ISlot | null = await slot.findOne({
+      movieId,
+      date,
+      time,
+      auditorium
+    });
 
-    const unavailableSeats = seats.filter((seat: string) => slot.bookedSeats.includes(seat));
+    if (!foundSlot)
+      return res.status(404).json({ message: 'Showtime slot not found' });
+
+    // ---------- Check seat availability ----------
+    const unavailableSeats = seats.filter((seat: string) =>
+      foundSlot.bookedSeats.includes(seat)
+    );
+
     if (unavailableSeats.length > 0) {
-      return res.status(400).json({ message: `Seats already booked: ${unavailableSeats.join(', ')}` });
+      return res.status(400).json({
+        message: `Seats already booked: ${unavailableSeats.join(', ')}`
+      });
     }
 
+    // ---------- Create Booking ----------
     const newBooking = new Booking({
       movieId,
       userId,
       customer,
       movie: movieData,
-      showtime,
-      auditorium,
+      slot: {
+        date,
+        time,
+        auditorium
+      },
+      payment,
       seats
     });
+
     await newBooking.save();
 
-    slot.bookedSeats.push(...seats);
-    await slot.save();
+    // ---------- Update Slot ----------
+    foundSlot.bookedSeats.push(...seats);
+    await foundSlot.save();
 
-    res.status(201).json({ message: 'Booking created successfully', booking: newBooking });
+    return res.status(201).json({
+      message: 'Booking created successfully',
+      booking: newBooking
+    });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 export const getAllBookings = async (req: Request, res: Response) => {
   try {
     const bookings = await Booking.find();
-    res.status(200).json(bookings);
+    return res.status(200).json(bookings);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error' });
   }
 };
