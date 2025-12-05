@@ -4,6 +4,8 @@ import cors from "cors";
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import webhookRoutes from "./routes/webhookRoutes.js";
 
 import cookieParser from "cookie-parser";
 
@@ -35,6 +37,8 @@ await connectDB();
 // Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
