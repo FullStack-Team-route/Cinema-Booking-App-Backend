@@ -62,3 +62,5 @@ OtpSchema.index({ email: 1, used: 1 });
 OtpSchema.index({ verificationToken: 1 }, { unique: true });
 
 export const Otp = mongoose.model<IOtp>("Otp", OtpSchema);
+
+

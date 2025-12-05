@@ -6,6 +6,9 @@ import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/BookingRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import webhookRoutes from "./routes/webhookRoutes.js";
+
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
@@ -97,6 +100,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/auditoriums", auditoriumRoutes);
 app.use("/api/slots", slotRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));

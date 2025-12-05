@@ -31,6 +31,7 @@ export const protect = async (
     if (!token) {
       return res.status(401).json({ message: "Not authorized, no token" });
     }
+    
 
     // Verify token
     if (!process.env.JWT_SECRET) {
