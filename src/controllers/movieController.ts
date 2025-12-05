@@ -125,3 +125,464 @@ export const deleteMovie = async (req: Request, res: Response) => {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
+
+// =============================
+// Advanced Movie Search - البحث المتقدم الشامل
+// =============================
+export const searchMovies = async (req: Request, res: Response) => {
+  try {
+    const {
+      q, // بحث عام في العنوان والوصف
+      title, // بحث بالعنوان بالضبط
+      genre, // تصنيف واحد
+      genres, // تصنيفات متعددة (مفصولة بفاصلة)
+      year, // سنة محددة
+      yearFrom, // من سنة
+      yearTo, // إلى سنة
+      rating, // تقييم أعلى من
+      ratingMin, // تقييم أدنى
+      ratingMax, // تقييم أقصى
+      director, // اسم المخرج
+      actor, // اسم الممثل
+      language, // اللغة
+      country, // الدولة
+      category, // الفئة (now-showing, coming-soon, featured)
+      sortBy = "createdAt", // ترتيب حسب
+      sortOrder = "desc", // اتجاه الترتيب
+      page = 1,
+      limit = 10,
+    } = req.query as any;
+
+    const filter: any = {};
+
+    // البحث النصي العام
+    if (q) {
+      filter.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { shortDescription: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    // البحث بالعنوان بالضبط
+    if (title) {
+      filter.title = { $regex: title, $options: "i" };
+    }
+
+    // البحث بالتصنيفات
+    if (genre) {
+      filter.genres = { $in: [genre] };
+    }
+    if (genres) {
+      const genreArray = genres
+        .split(",")
+        .map((g: string) => g.trim())
+        .filter((g: string) => g && g.length > 0);
+      if (genreArray.length > 0) {
+        filter.genres = { $in: genreArray };
+      }
+    }
+
+    // فلاتر السنة
+    if (year) {
+      const yearNum = parseInt(year as string, 10);
+      if (!isNaN(yearNum)) {
+        filter.year = yearNum;
+      }
+    }
+    if (yearFrom || yearTo) {
+      filter.year = {};
+      if (yearFrom) {
+        const yearFromNum = parseInt(yearFrom as string, 10);
+        if (!isNaN(yearFromNum)) {
+          filter.year.$gte = yearFromNum;
+        }
+      }
+      if (yearTo) {
+        const yearToNum = parseInt(yearTo as string, 10);
+        if (!isNaN(yearToNum)) {
+          filter.year.$lte = yearToNum;
+        }
+      }
+    }
+
+    // فلاتر التقييم
+    if (rating) {
+      const ratingNum = parseFloat(rating as string);
+      if (!isNaN(ratingNum)) {
+        filter.rating = { $gte: ratingNum };
+      }
+    }
+    if (ratingMin || ratingMax) {
+      filter.rating = {};
+      if (ratingMin) {
+        const ratingMinNum = parseFloat(ratingMin as string);
+        if (!isNaN(ratingMinNum)) {
+          filter.rating.$gte = ratingMinNum;
+        }
+      }
+      if (ratingMax) {
+        const ratingMaxNum = parseFloat(ratingMax as string);
+        if (!isNaN(ratingMaxNum)) {
+          filter.rating.$lte = ratingMaxNum;
+        }
+      }
+    }
+
+    // البحث بالمخرج
+    if (director) {
+      filter.directors = {
+        $elemMatch: { name: { $regex: director, $options: "i" } },
+      };
+    }
+
+    // البحث بالممثل
+    if (actor) {
+      filter.cast = {
+        $elemMatch: { name: { $regex: actor, $options: "i" } },
+      };
+    }
+
+    // اللغة والدولة
+    if (language) {
+      filter.language = { $regex: language, $options: "i" };
+    }
+    if (country) {
+      filter.country = { $regex: country, $options: "i" };
+    }
+
+    // الفئة
+    if (category) {
+      filter.category = category;
+    }
+
+    // الترتيب
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const movies = await Movie.find(filter)
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        movies,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
+        filters: {
+          applied: Object.keys(filter).length > 0,
+          searchQuery: q,
+          genre,
+          genres,
+          year,
+          yearFrom,
+          yearTo,
+          rating,
+          ratingMin,
+          ratingMax,
+          director,
+          actor,
+          language,
+          country,
+          category,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// البحث بالتصنيف - Genre Search
+// =============================
+export const getMoviesByGenre = async (req: Request, res: Response) => {
+  try {
+    const { genre } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "rating",
+      sortOrder = "desc",
+    } = req.query as any;
+
+    if (!genre || typeof genre !== "string") {
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", error: "Genre parameter is required" });
+    }
+
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const movies = await Movie.find({
+      genres: { $in: [genre] },
+      isActive: true,
+    })
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments({
+      genres: { $in: [genre] },
+      isActive: true,
+    });
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        genre,
+        movies,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// البحث بالسنة - Year Search
+// =============================
+export const getMoviesByYear = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "rating",
+      sortOrder = "desc",
+    } = req.query as any;
+
+    if (!year || typeof year !== "string") {
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", error: "Year parameter is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    if (isNaN(yearNum)) {
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", error: "Invalid year parameter" });
+    }
+
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const movies = await Movie.find({
+      year: yearNum,
+      isActive: true,
+    })
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments({ year: yearNum, isActive: true });
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        year: yearNum,
+        movies,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// أفضل الأفلام تقييماً - Top Rated Movies
+// =============================
+export const getTopRatedMovies = async (req: Request, res: Response) => {
+  try {
+    const { limit = 10, minRating = 7.0 } = req.query as any;
+
+    const minRatingNum = parseFloat(minRating as string);
+    if (isNaN(minRatingNum)) {
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", error: "Invalid minRating parameter" });
+    }
+
+    const movies = await Movie.find({
+      rating: { $gte: minRatingNum },
+      isActive: true,
+    })
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(+limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        movies,
+        count: movies.length,
+        minRating: minRatingNum,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// البحث بالشخص (ممثل/مخرج/كاتب) - Person Search
+// =============================
+export const getMoviesByPerson = async (req: Request, res: Response) => {
+  try {
+    const { name, role = "cast" } = req.params; // cast, directors, writers, producers
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "year",
+      sortOrder = "desc",
+    } = req.query as any;
+
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const filter: any = {};
+    filter[role] = {
+      $elemMatch: { name: { $regex: name, $options: "i" } },
+    };
+    filter.isActive = true;
+
+    const movies = await Movie.find(filter)
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        person: name,
+        role,
+        movies,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// الأفلام المميزة - Featured Movies
+// =============================
+export const getFeaturedMovies = async (req: Request, res: Response) => {
+  try {
+    const { category = "featured", limit = 10 } = req.query as any;
+
+    const filter: any = {
+      category,
+      isActive: true,
+    };
+
+    if (category === "featured") {
+      filter.featured = true;
+    }
+
+    const movies = await Movie.find(filter)
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(+limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        category,
+        movies,
+        count: movies.length,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// الاقتراحات التلقائية - Auto Complete
+// =============================
+export const searchAutoComplete = async (req: Request, res: Response) => {
+  try {
+    const { q, limit = 5 } = req.query as any;
+
+    if (!q || q.length < 2) {
+      return res.status(200).json({
+        statusMsg: "success",
+        data: { suggestions: [] },
+      });
+    }
+
+    // البحث في العناوين
+    const titleMatches = await Movie.find({
+      title: { $regex: `^${q}`, $options: "i" },
+      isActive: true,
+    })
+      .select("title _id")
+      .limit(+limit);
+
+    // البحث في التصنيفات
+    const genreMatches = await Movie.distinct("genres", {
+      genres: { $regex: q, $options: "i" },
+      isActive: true,
+    });
+
+    // البحث في أسماء الممثلين
+    const castMatches = await Movie.distinct("cast.name", {
+      "cast.name": { $regex: `^${q}`, $options: "i" },
+      isActive: true,
+    });
+
+    const suggestions = {
+      movies: titleMatches.map((m) => ({
+        id: m._id,
+        title: m.title,
+        type: "movie",
+      })),
+      genres: genreMatches
+        .slice(0, +limit)
+        .map((g) => ({ name: g, type: "genre" })),
+      actors: castMatches
+        .slice(0, +limit)
+        .map((a) => ({ name: a, type: "actor" })),
+    };
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: { suggestions },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
