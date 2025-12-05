@@ -47,7 +47,7 @@ const TrailerSchema = new mongoose.Schema<ITrailer>(
 );
 
 // Showtime/Slot Schema
-const SlotSchema = new mongoose.Schema<ISlot>(
+export const SlotSchema = new mongoose.Schema<ISlot>(
   {
     date: { type: Date, required: true },
     time: { type: String, required: true }, // "14:30"
