@@ -432,8 +432,9 @@ export const forgotPassword = async (
       });
     }
 
-    // Generate OTP
+    // Generate OTP and verification token
     const otp = generateOTP();
+    const verificationToken = crypto.randomUUID();
 
     // Save OTP to database (invalidate any existing unused OTPs for this email)
     await Otp.updateMany({ email, used: false }, { used: true });
@@ -441,6 +442,7 @@ export const forgotPassword = async (
     await Otp.create({
       email,
       otp,
+      verificationToken,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
@@ -454,6 +456,14 @@ export const forgotPassword = async (
         message: "Failed to send OTP email. Please try again.",
       });
     }
+
+    // Set verification token in httpOnly cookie
+    res.cookie("verification_token", verificationToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 10 * 60 * 1000, // 10 minutes (same as OTP expiry)
+    });
 
     res.status(200).json({
       statusMsg: "success",
@@ -473,21 +483,24 @@ export const verifyOtp = async (
   next: NextFunction
 ) => {
   try {
-    const { email, otp } = req.body;
+    const verificationToken = req.cookies.verification_token;
+    const { otp } = req.body;
 
-    if (!email || !otp) {
+    if (!verificationToken || !otp) {
       return res.status(400).json({
         statusMsg: "fail",
-        message: "Email and OTP are required",
+        message: verificationToken
+          ? "OTP is required"
+          : "No verification session found. Please request a new OTP.",
       });
     }
 
-    // Find the most recent unused OTP for this email
+    // Find the OTP by verification token
     const otpRecord = await Otp.findOne({
-      email,
+      verificationToken,
       used: false,
       expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 });
+    });
 
     if (!otpRecord) {
       return res.status(400).json({
@@ -526,7 +539,7 @@ export const verifyOtp = async (
     res.status(200).json({
       statusMsg: "success",
       message: "OTP verified successfully",
-      email: email,
+      email: otpRecord.email,
     });
   } catch (error) {
     next(error);
@@ -542,18 +555,21 @@ export const resetPassword = async (
   next: NextFunction
 ) => {
   try {
-    const { email, currentPassword, newPassword } = req.body;
+    const verificationToken = req.cookies.verification_token;
+    const { newPassword } = req.body;
 
-    if (!email || !currentPassword || !newPassword) {
+    if (!verificationToken || !newPassword) {
       return res.status(400).json({
         statusMsg: "fail",
-        message: "All fields are required",
+        message: verificationToken
+          ? "New password is required"
+          : "No verification session found. Please verify your OTP first.",
       });
     }
 
-    // Find a verified but unused OTP for this email (user has already verified OTP)
+    // Find a verified but unused OTP by verification token
     const otpRecord = await Otp.findOne({
-      email,
+      verificationToken,
       verified: true,
       used: false,
       expiresAt: { $gt: new Date() },
@@ -567,29 +583,11 @@ export const resetPassword = async (
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: otpRecord.email });
     if (!user) {
       return res.status(404).json({
         statusMsg: "fail",
         message: "User not found",
-      });
-    }
-
-    // Verify current password
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
-      return res.status(401).json({
-        statusMsg: "fail",
-        message: "Current password is incorrect",
-      });
-    }
-
-    // Check new password is different from current
-    const isSamePassword = await user.comparePassword(newPassword);
-    if (isSamePassword) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "New password must be different from current password",
       });
     }
 

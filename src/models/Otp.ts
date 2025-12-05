@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 export interface IOtp {
   email: string;
   otp: string;
+  verificationToken: string; // Unique token for verification
   expiresAt: Date;
   used: boolean; // True when OTP is used for password reset
   verified: boolean; // True when OTP is successfully verified
@@ -21,6 +22,11 @@ const OtpSchema = new mongoose.Schema<IOtp>(
     otp: {
       type: String,
       required: true,
+    },
+    verificationToken: {
+      type: String,
+      required: true,
+      unique: true,
     },
     expiresAt: {
       type: Date,
@@ -52,5 +58,8 @@ OtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Index for email lookup
 OtpSchema.index({ email: 1, used: 1 });
+
+// Index for verification token lookup
+OtpSchema.index({ verificationToken: 1 }, { unique: true });
 
 export const Otp = mongoose.model<IOtp>("Otp", OtpSchema);

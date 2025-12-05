@@ -120,10 +120,6 @@ router.post(
 router.post(
   "/verify-otp",
   [
-    body("email")
-      .isEmail()
-      .withMessage("Valid email is required")
-      .normalizeEmail(),
     body("otp")
       .isLength({ min: 6, max: 6 })
       .withMessage("OTP must be 6 digits")
@@ -136,13 +132,6 @@ router.post(
 router.post(
   "/reset-password",
   [
-    body("email")
-      .isEmail()
-      .withMessage("Valid email is required")
-      .normalizeEmail(),
-    body("currentPassword")
-      .notEmpty()
-      .withMessage("Current password is required"),
     body("newPassword")
       .isLength({ min: 6 })
       .withMessage("New password must be at least 6 characters"),
