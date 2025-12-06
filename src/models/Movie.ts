@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 
 // Interfaces for better type safety
-interface ISlot {
+export interface ISlot {
+  save(): unknown;
+  bookedSeats: any;
   date: Date;
   time: string;
   ampm: "AM" | "PM";
@@ -45,7 +47,7 @@ const TrailerSchema = new mongoose.Schema<ITrailer>(
 );
 
 // Showtime/Slot Schema
-const SlotSchema = new mongoose.Schema<ISlot>(
+export const SlotSchema = new mongoose.Schema<ISlot>(
   {
     date: { type: Date, required: true },
     time: { type: String, required: true }, // "14:30"
