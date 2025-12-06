@@ -125,6 +125,10 @@ router.post(
       .withMessage("OTP must be 6 digits")
       .isNumeric()
       .withMessage("OTP must contain only numbers"),
+    body("verificationToken")
+      .optional() 
+      .isUUID()
+      .withMessage("Invalid verification token format"),
   ],
   verifyOtp
 );
@@ -135,6 +139,10 @@ router.post(
     body("newPassword")
       .isLength({ min: 6 })
       .withMessage("New password must be at least 6 characters"),
+    body("verificationToken")
+      .optional()
+      .isUUID()
+      .withMessage("Invalid verification token format"),
   ],
   resetPassword
 );

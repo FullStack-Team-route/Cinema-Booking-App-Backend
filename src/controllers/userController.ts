@@ -37,7 +37,7 @@ export const registerUser = async (
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -85,7 +85,7 @@ export const loginUser = async (
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -468,6 +468,7 @@ export const forgotPassword = async (
     res.status(200).json({
       statusMsg: "success",
       message: "OTP sent to your email successfully",
+      verificationToken: verificationToken,
     });
   } catch (error) {
     next(error);
@@ -483,7 +484,10 @@ export const verifyOtp = async (
   next: NextFunction
 ) => {
   try {
-    const verificationToken = req.cookies.verification_token;
+    const verificationToken =
+      req.body.verificationToken || req.cookies.verification_token;
+    console.log("Verification token:", verificationToken);
+
     const { otp } = req.body;
 
     if (!verificationToken || !otp) {
@@ -555,7 +559,8 @@ export const resetPassword = async (
   next: NextFunction
 ) => {
   try {
-    const verificationToken = req.cookies.verification_token;
+    const verificationToken =
+      req.body.verificationToken || req.cookies.verification_token;
     const { newPassword } = req.body;
 
     if (!verificationToken || !newPassword) {
@@ -573,7 +578,6 @@ export const resetPassword = async (
       verified: true,
       used: false,
       expiresAt: { $gt: new Date() },
-      
     });
 
     if (!otpRecord) {
