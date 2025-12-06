@@ -102,6 +102,7 @@ export const MovieSchema = new mongoose.Schema(
     writers: [PersonSchema],
     cast: [PersonSchema], // main actors
     producers: [PersonSchema],
+    singers: [PersonSchema], // singers/musicians
 
     // Cinema-specific fields
     slots: [SlotSchema], // showtimes for this movie

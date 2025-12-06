@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { User } from "../models/User.js";
+import { Otp } from "../models/Otp.js";
 import { generateToken } from "../utils/generateToken.js";
+import { sendOtpEmail } from "../utils/emailService.js";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
 
 export const registerUser = async (
@@ -344,6 +346,271 @@ export const getUsers = async (
       page,
       total,
       pages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Generate random OTP
+const generateOTP = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// =============================
+// Forgot Password - Send OTP
+// =============================
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", message: "Email is required" });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "No account found with this email address",
+      });
+    }
+
+    // Rate limiting - prevent spam (max 3 OTP requests per hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentOtps = await Otp.find({
+      email,
+      createdAt: { $gte: oneHourAgo },
+    });
+
+    if (recentOtps.length >= 3) {
+      return res.status(429).json({
+        statusMsg: "fail",
+        message:
+          "Too many OTP requests. Please wait 1 hour before requesting another OTP.",
+      });
+    }
+
+    // Check if there's a verified but unused OTP (user verified but hasn't reset password yet)
+    const verifiedUnusedOtp = await Otp.findOne({
+      email,
+      verified: true,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (verifiedUnusedOtp) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message:
+          "You have already verified an OTP. Please complete the password reset.",
+      });
+    }
+
+    // Check if there's a valid unused OTP sent in the last 2 minutes
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const recentValidOtp = await Otp.findOne({
+      email,
+      used: false,
+      verified: false,
+      expiresAt: { $gt: new Date() },
+      createdAt: { $gte: twoMinutesAgo },
+    });
+
+    if (recentValidOtp) {
+      return res.status(429).json({
+        statusMsg: "fail",
+        message:
+          "OTP already sent recently. Please wait 2 minutes before requesting another.",
+      });
+    }
+
+    // Generate OTP and verification token
+    const otp = generateOTP();
+    const verificationToken = crypto.randomUUID();
+
+    // Save OTP to database (invalidate any existing unused OTPs for this email)
+    await Otp.updateMany({ email, used: false }, { used: true });
+
+    await Otp.create({
+      email,
+      otp,
+      verificationToken,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+
+    // Send OTP email
+    try {
+      await sendOtpEmail(email, otp);
+    } catch (emailError) {
+      console.error("Failed to send OTP email:", emailError);
+      return res.status(500).json({
+        statusMsg: "fail",
+        message: "Failed to send OTP email. Please try again.",
+      });
+    }
+
+    // Set verification token in httpOnly cookie
+    res.cookie("verification_token", verificationToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 10 * 60 * 1000, // 10 minutes (same as OTP expiry)
+    });
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "OTP sent to your email successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================
+// Verify OTP
+// =============================
+export const verifyOtp = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const verificationToken = req.cookies.verification_token;
+    const { otp } = req.body;
+
+    if (!verificationToken || !otp) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: verificationToken
+          ? "OTP is required"
+          : "No verification session found. Please request a new OTP.",
+      });
+    }
+
+    // Find the OTP by verification token
+    const otpRecord = await Otp.findOne({
+      verificationToken,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "No valid OTP found. Please request a new one.",
+      });
+    }
+
+    // Check if OTP matches
+    if (otpRecord.otp !== otp) {
+      // Increment attempts
+      otpRecord.attempts += 1;
+      otpRecord.lastAttemptAt = new Date();
+
+      // If too many attempts, mark as used to prevent further attempts
+      if (otpRecord.attempts >= 3) {
+        otpRecord.used = true;
+        await otpRecord.save();
+        return res.status(429).json({
+          statusMsg: "fail",
+          message: "Too many failed attempts. Please request a new OTP.",
+        });
+      }
+
+      await otpRecord.save();
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: `Invalid OTP. ${3 - otpRecord.attempts} attempts remaining.`,
+      });
+    }
+
+    // OTP is correct - mark as verified
+    otpRecord.verified = true;
+    await otpRecord.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "OTP verified successfully",
+      email: otpRecord.email,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================
+// Reset Password
+// =============================
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const verificationToken = req.cookies.verification_token;
+    const { newPassword } = req.body;
+
+    if (!verificationToken || !newPassword) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: verificationToken
+          ? "New password is required"
+          : "No verification session found. Please verify your OTP first.",
+      });
+    }
+
+    // Find a verified but unused OTP by verification token
+    const otpRecord = await Otp.findOne({
+      verificationToken,
+      verified: true,
+      used: false,
+      expiresAt: { $gt: new Date() },
+      
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "No verified OTP found. Please verify your OTP first.",
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: otpRecord.email });
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Check new password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "New password must be at least 6 characters long",
+      });
+    }
+
+    // Update password (pre-save hook will hash it)
+    user.password = newPassword;
+    await user.save();
+
+    // Mark OTP as used (prevent reuse)
+    otpRecord.used = true;
+    await otpRecord.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "Password reset successfully",
     });
   } catch (error) {
     next(error);
