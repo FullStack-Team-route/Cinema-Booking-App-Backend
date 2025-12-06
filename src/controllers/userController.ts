@@ -468,7 +468,6 @@ export const forgotPassword = async (
     res.status(200).json({
       statusMsg: "success",
       message: "OTP sent to your email successfully",
-      verificationToken: verificationToken,
     });
   } catch (error) {
     next(error);
@@ -484,9 +483,7 @@ export const verifyOtp = async (
   next: NextFunction
 ) => {
   try {
-    const verificationToken =
-      req.body.verificationToken || req.cookies.verification_token;
-    console.log("Verification token:", verificationToken);
+    const verificationToken = req.cookies.verification_token;
 
     const { otp } = req.body;
 
@@ -559,8 +556,7 @@ export const resetPassword = async (
   next: NextFunction
 ) => {
   try {
-    const verificationToken =
-      req.body.verificationToken || req.cookies.verification_token;
+    const verificationToken = req.cookies.verification_token;
     const { newPassword } = req.body;
 
     if (!verificationToken || !newPassword) {
