@@ -573,6 +573,7 @@ export const resetPassword = async (
       verified: true,
       used: false,
       expiresAt: { $gt: new Date() },
+      
     });
 
     if (!otpRecord) {

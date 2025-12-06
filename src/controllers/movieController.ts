@@ -16,6 +16,7 @@ export const addMovie = async (req: Request, res: Response) => {
       "writers",
       "cast",
       "producers",
+      "singers",
       "slots",
       "trailer",
       "genres",
@@ -581,6 +582,47 @@ export const searchAutoComplete = async (req: Request, res: Response) => {
     res.status(200).json({
       statusMsg: "success",
       data: { suggestions },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// أحدث الـ Trailers - Latest Trailers
+// =============================
+export const getLatestTrailers = async (req: Request, res: Response) => {
+  try {
+    const { limit = 10, page = 1 } = req.query as any;
+
+    // Filter movies that have trailers and are active
+    const filter: any = {
+      isActive: true,
+      "trailer.url": { $exists: true, $ne: null },
+    };
+
+    const movies = await Movie.find(filter)
+      .select(
+        "title description poster genres year duration releaseDate trailer directors producers cast singers"
+      )
+      .sort({ releaseDate: -1, createdAt: -1 })
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: {
+        trailers: movies,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
+      },
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
