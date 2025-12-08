@@ -268,17 +268,6 @@ npm start
 - **تحليل التصنيفات**: أداء كل تصنيف فيلم
 - **النشاط الحديث**: آخر الحجوزات والمستخدمين والأفلام
 
-## 🔧 Testing
-
-```bash
-# تشغيل الاختبارات
-npm test
-
-# تشغيل الاختبارات مع Coverage
-npm run test:coverage
-```
-
-## 🚀 النشر (Deployment)
 
 ### إعداد الإنتاج
 
@@ -302,65 +291,8 @@ npm run test:coverage
    GMAIL_APP_PASSWORD=app-specific-password
    ```
 
-### استخدام Docker (اختياري)
 
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 5000
-CMD ["npm", "start"]
-```
 
-```bash
-# بناء وتشغيل Docker
-docker build -t cinema-backend .
-docker run -p 5000:5000 cinema-backend
-```
-
-### نشر على Heroku
-
-```bash
-# إعداد Heroku
-heroku create cinema-booking-api
-heroku config:set NODE_ENV=production
-heroku config:set MONGODB_URI=your_mongodb_uri
-heroku config:set JWT_SECRET=your_jwt_secret
-# ... باقي المتغيرات
-
-# النشر
-git push heroku main
-```
-
-## 🤝 المساهمة
-
-نرحب بالمساهمات! يرجى اتباع الخطوات التالية:
-
-1. Fork المشروع
-2. إنشاء فرع للميزة (`git checkout -b feature/AmazingFeature`)
-3. Commit التغييرات (`git commit -m 'Add some AmazingFeature'`)
-4. Push للفرع (`git push origin feature/AmazingFeature`)
-5. فتح Pull Request
-
-### معايير الكود
-- استخدام TypeScript للـ type safety
-- اتباع ESLint rules
-- كتابة اختبارات للوظائف الجديدة
-- تحديث التوثيق
-
-## 📝 الترخيص
-
-هذا المشروع مرخص تحت رخصة MIT - انظر ملف [LICENSE](LICENSE) للتفاصيل.
-
-## 📞 الدعم
-
-للاستفسارات أو الدعم:
-- **Email**: support@cinemabooking.com
-- **Issues**: [GitHub Issues](https://github.com/your-username/cinema-booking-system/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/cinema-booking-system/discussions)
 
 ## 🙏 شكر وتقدير
 
