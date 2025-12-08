@@ -70,6 +70,24 @@ export const getAllMovies = async (req: Request, res: Response) => {
 };
 
 // =============================
+// Get specific movie by ID
+// =============================
+export const getSpecificMovie = async (req: Request, res: Response) => {
+  try {
+    const movie = await Movie.findById(req.params.id);
+    if (!movie) {
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "Movie not found" });
+    }
+
+    res.status(200).json({ statusMsg: "success", movie });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
 // Update movie
 // =============================
 export const updateMovie = async (req: Request, res: Response) => {

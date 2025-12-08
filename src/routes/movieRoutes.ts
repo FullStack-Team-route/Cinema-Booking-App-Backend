@@ -13,6 +13,7 @@ import {
   getFeaturedMovies,
   searchAutoComplete,
   getLatestTrailers,
+  getSpecificMovie,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { storage } from "../config/cloudinary.js";
@@ -30,6 +31,11 @@ router.post("/addMovie", protect, adminOnly, upload.single("poster"), addMovie);
 // Get paginated movies (Public)
 // =============================
 router.get("/allMovies", getAllMovies);
+
+// =============================
+// Get specific movie (Public)
+// =============================
+router.get("/getSpecificMovie/:id", getSpecificMovie);
 
 // =============================
 // Update movie (Admin only)
