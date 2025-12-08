@@ -271,31 +271,27 @@ export const searchMovies = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        movies,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-        filters: {
-          applied: Object.keys(filter).length > 0,
-          searchQuery: q,
-          genre,
-          genres,
-          year,
-          yearFrom,
-          yearTo,
-          rating,
-          ratingMin,
-          ratingMax,
-          director,
-          actor,
-          language,
-          country,
-          category,
-        },
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
+      filters: {
+        applied: Object.keys(filter).length > 0,
+        searchQuery: q,
+        genre,
+        genres,
+        year,
+        yearFrom,
+        yearTo,
+        rating,
+        ratingMin,
+        ratingMax,
+        director,
+        actor,
+        language,
+        country,
+        category,
       },
     });
   } catch (err: any) {
@@ -341,16 +337,12 @@ export const getMoviesByGenre = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        genre,
-        movies,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      genre,
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -399,16 +391,12 @@ export const getMoviesByYear = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        year: yearNum,
-        movies,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      year: yearNum,
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -441,17 +429,13 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        movies,
-        count: movies.length,
-        minRating: minRatingNum,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
+      count: movies.length,
+      minRating: minRatingNum,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -490,17 +474,13 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        person: name,
-        role,
-        movies,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      person: name,
+      role,
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -533,17 +513,13 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        category,
-        movies,
-        count: movies.length,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      category,
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
+      count: movies.length,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -633,15 +609,11 @@ export const getLatestTrailers = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      data: {
-        trailers: movies,
-        pagination: {
-          page: +page,
-          limit: +limit,
-          total,
-          totalPages,
-        },
-      },
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      trailers: movies,
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
