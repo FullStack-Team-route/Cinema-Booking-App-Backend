@@ -61,15 +61,9 @@ export const getAllMovies = async (req: Request, res: Response) => {
     const total = await Movie.countDocuments(filter);
     const totalPages = Math.ceil(total / +limit);
 
-    res.status(200).json({
-      statusMsg: "success",
-      pagination: {
-        page,
-        totalPages,
-        total,
-      },
-      movies,
-    });
+    res
+      .status(200)
+      .json({ statusMsg: "success", page, totalPages, total, movies });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
