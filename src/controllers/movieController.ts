@@ -420,7 +420,7 @@ export const getMoviesByYear = async (req: Request, res: Response) => {
 // =============================
 export const getTopRatedMovies = async (req: Request, res: Response) => {
   try {
-    const { limit = 10, minRating = 7.0 } = req.query as any;
+    const { limit = 10, minRating = 7.0, page = 1 } = req.query as any;
 
     const minRatingNum = parseFloat(minRating as string);
     if (isNaN(minRatingNum)) {
@@ -429,12 +429,15 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
         .json({ statusMsg: "fail", error: "Invalid minRating parameter" });
     }
 
-    const movies = await Movie.find({
-      rating: { $gte: minRatingNum },
-      isActive: true,
-    })
+    const filter = { rating: { $gte: minRatingNum }, isActive: true };
+
+    const movies = await Movie.find(filter)
       .sort({ rating: -1, createdAt: -1 })
+      .skip((+page - 1) * +limit)
       .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
 
     res.status(200).json({
       statusMsg: "success",
@@ -442,6 +445,12 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
         movies,
         count: movies.length,
         minRating: minRatingNum,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
       },
     });
   } catch (err: any) {
@@ -503,7 +512,7 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
 // =============================
 export const getFeaturedMovies = async (req: Request, res: Response) => {
   try {
-    const { category = "featured", limit = 10 } = req.query as any;
+    const { category = "featured", limit = 10, page = 1 } = req.query as any;
 
     const filter: any = {
       category,
@@ -516,7 +525,11 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .sort({ rating: -1, createdAt: -1 })
+      .skip((+page - 1) * +limit)
       .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
 
     res.status(200).json({
       statusMsg: "success",
@@ -524,6 +537,12 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
         category,
         movies,
         count: movies.length,
+        pagination: {
+          page: +page,
+          limit: +limit,
+          total,
+          totalPages,
+        },
       },
     });
   } catch (err: any) {
