@@ -38,6 +38,26 @@ export const addMovie = async (req: Request, res: Response) => {
     const file = (req as any).file;
     if (file) data.poster = file.path; // Cloudinary URL
 
+    // Calculate total seats and available seats for each slot
+    if (data.slots && Array.isArray(data.slots)) {
+      data.slots.forEach((slot: any) => {
+        if (slot.seatTypes && Array.isArray(slot.seatTypes)) {
+          const totalSeats = slot.seatTypes.reduce(
+            (sum: number, seatType: any) => sum + (seatType.totalSeats || 0),
+            0
+          );
+          const availableSeats = slot.seatTypes.reduce(
+            (sum: number, seatType: any) =>
+              sum + (seatType.availableSeats || 0),
+            0
+          );
+
+          slot.totalSeats = totalSeats;
+          slot.availableSeats = availableSeats;
+        }
+      });
+    }
+
     const movie = await Movie.create(data);
     res.status(201).json({ statusMsg: "success", movie });
   } catch (err: any) {
@@ -632,6 +652,169 @@ export const getLatestTrailers = async (req: Request, res: Response) => {
       total,
       totalPages,
       trailers: movies,
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// Get Movies Schedule by Date (Today's Movies with Showtimes)
+// =============================
+export const getMoviesByDate = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query as any;
+
+    // Default to today if no date provided
+    const targetDate = date ? new Date(date) : new Date();
+
+    // Set time to start of day for accurate comparison
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Find movies with slots on the target date
+    const movies = await Movie.find({
+      isActive: true,
+      "slots.date": {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    })
+      .select(
+        "title poster description rating duration category slots auditoriums"
+      )
+      .sort({ title: 1 })
+      .lean();
+
+    // Process movies to include only today's slots
+    const todaysMovies = movies.map((movie: any) => {
+      const movieObj = movie;
+
+      // Filter slots for today only
+      const todaysSlots = movieObj.slots.filter((slot: any) => {
+        const slotDate = new Date(slot.date);
+        return slotDate >= startOfDay && slotDate <= endOfDay;
+      });
+
+      // Group slots by auditorium (use auditoriums array from movie)
+      const scheduleByAuditorium: any = {};
+      todaysSlots.forEach((slot: any, index: number) => {
+        // Use auditorium from movie's auditoriums array or default
+        const auditoriumName =
+          movieObj.auditoriums?.[index] ||
+          movieObj.auditoriums?.[0] ||
+          "Auditorium 1";
+        if (!scheduleByAuditorium[auditoriumName]) {
+          scheduleByAuditorium[auditoriumName] = [];
+        }
+        scheduleByAuditorium[auditoriumName].push({
+          time: slot.time,
+          ampm: slot.ampm,
+          price: slot.price,
+          availableSeats: slot.availableSeats,
+          totalSeats: slot.totalSeats,
+        });
+      });
+
+      return {
+        id: movieObj._id,
+        title: movieObj.title,
+        poster: movieObj.poster,
+        description: movieObj.description,
+        rating: movieObj.rating,
+        duration: movieObj.duration,
+        category: movieObj.category,
+        schedule: scheduleByAuditorium,
+      };
+    });
+
+    res.status(200).json({
+      statusMsg: "success",
+      date: targetDate.toISOString().split("T")[0],
+      totalMovies: todaysMovies.length,
+      movies: todaysMovies,
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// Get Seat Layout for Booking
+// =============================
+export const getSeatLayout = async (req: Request, res: Response) => {
+  try {
+    const { movieId, slotId } = req.params;
+
+    if (!movieId || !slotId) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Movie ID and Slot ID are required",
+      });
+    }
+
+    const movie = await Movie.findById(movieId);
+    if (!movie) {
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "Movie not found" });
+    }
+
+    const slot = movie.slots.id(slotId);
+    if (!slot) {
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "Showtime slot not found" });
+    }
+
+    // Generate seat layout for each type
+    const seatLayout = (slot as any).seatTypes.map((seatType: any) => {
+      const bookedSeatsForType = (slot as any).bookedSeats
+        .filter((booked: any) => booked.seatType === seatType.type)
+        .map((booked: any) => booked.seatId);
+
+      // Generate available seat IDs (this is a simplified example)
+      // In real implementation, you'd have predefined seat arrangements
+      const availableSeats = [];
+      for (let row = 1; row <= Math.ceil(seatType.availableSeats / 10); row++) {
+        for (
+          let col = 1;
+          col <= 10 && availableSeats.length < seatType.availableSeats;
+          col++
+        ) {
+          const seatId = `${seatType.type.charAt(0)}${row}${String.fromCharCode(
+            64 + col
+          )}`;
+          if (!bookedSeatsForType.includes(seatId)) {
+            availableSeats.push(seatId);
+          }
+        }
+      }
+
+      return {
+        type: seatType.type,
+        label: seatType.label,
+        price: seatType.price,
+        totalSeats: seatType.totalSeats,
+        availableSeats: availableSeats,
+        bookedSeats: bookedSeatsForType,
+      };
+    });
+
+    res.status(200).json({
+      statusMsg: "success",
+      seatLayout: {
+        movieId,
+        slotId,
+        movieTitle: movie.title,
+        showtime: `${slot.time} ${slot.ampm}`,
+        date: slot.date,
+        auditorium: movie.auditoriums?.[0] || "Auditorium 1",
+        seatTypes: seatLayout,
+      },
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });

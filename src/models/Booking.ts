@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IBooking extends Document {
   movieId: Types.ObjectId;
@@ -15,20 +15,21 @@ export interface IBooking extends Document {
     rating?: number;
   };
 
+  slotId: string; // Added for seat management
   showtime: string;
   auditorium: string;
   totalPrice: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'refunded';
+  status: "pending" | "confirmed" | "cancelled" | "refunded";
   bookingReference: string;
   paymentId?: Types.ObjectId;
 
-  seats: string[];
+  seats: any[]; // Now array of seat objects: [{seatType, seatId, price}]
 }
 
 const bookingSchema = new Schema<IBooking>(
   {
-    movieId: { type: Schema.Types.ObjectId, ref: 'Movie', required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    movieId: { type: Schema.Types.ObjectId, ref: "Movie", required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     customer: { type: String, required: true },
 
     movie: {
@@ -39,6 +40,11 @@ const bookingSchema = new Schema<IBooking>(
       category: { type: String },
       year: { type: Number },
       rating: { type: Number },
+    },
+
+    slotId: {
+      type: String,
+      required: true,
     },
 
     showtime: {
@@ -58,8 +64,8 @@ const bookingSchema = new Schema<IBooking>(
 
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'cancelled', 'refunded'],
-      default: 'pending',
+      enum: ["pending", "confirmed", "cancelled", "refunded"],
+      default: "pending",
     },
 
     bookingReference: {
@@ -70,13 +76,13 @@ const bookingSchema = new Schema<IBooking>(
 
     paymentId: {
       type: Schema.Types.ObjectId,
-      ref: 'Payment',
+      ref: "Payment",
     },
 
-    seats: { type: [String], required: true },
+    seats: [{ type: Schema.Types.Mixed }], // Array of seat objects
   },
   { timestamps: true }
 );
 
-export const Booking = mongoose.model<IBooking>('Booking', bookingSchema);
+export const Booking = mongoose.model<IBooking>("Booking", bookingSchema);
 export default Booking;

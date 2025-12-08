@@ -14,6 +14,8 @@ import {
   searchAutoComplete,
   getLatestTrailers,
   getSpecificMovie,
+  getMoviesByDate,
+  getSeatLayout,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { storage } from "../config/cloudinary.js";
@@ -81,6 +83,12 @@ router.get("/featured", getFeaturedMovies);
 
 // أحدث الـ Trailers
 router.get("/latest-trailers", getLatestTrailers);
+
+// جدولة الأفلام حسب التاريخ
+router.get("/by-date", getMoviesByDate);
+
+// تخطيط المقاعد للحجز
+router.get("/seat-layout/:movieId/:slotId", getSeatLayout);
 
 // Legacy route for backward compatibility
 router.get("/allMovies", getAllMovies);

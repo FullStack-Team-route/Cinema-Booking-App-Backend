@@ -16,6 +16,7 @@
 ## ✨ المميزات الرئيسية
 
 ### 👥 نظام المصادقة والمستخدمين
+
 - ✅ تسجيل وتسجيل دخول آمن مع JWT
 - ✅ إدارة البروفايل والتحقق من البريد الإلكتروني
 - ✅ إعادة تعيين كلمة المرور مع OTP
@@ -23,6 +24,7 @@
 - ✅ Rate Limiting للحماية من الهجمات
 
 ### 🎭 إدارة الأفلام
+
 - ✅ CRUD كامل للأفلام مع رفع الصور
 - ✅ إدارة التصنيفات والعروض والقاعات
 - ✅ بحث وفلترة متقدمة (نوع، تصنيف، سنة، تقييم، مخرج، ممثل)
@@ -30,7 +32,9 @@
 - ✅ إدارة حالة الفيلم (معروض، قادم قريباً، مميز)
 
 ### 🎫 نظام الحجوزات المتقدم
-- ✅ حجز المقاعد التفاعلي
+
+- ✅ حجز المقاعد التفاعلي مع أنواع مختلفة (VIP، Regular، Premium)
+- ✅ أسعار مرنة لكل نوع كرسي
 - ✅ دفع آمن عبر Stripe
 - ✅ تأكيد فوري للحجز والدفع
 - ✅ إدارة حالة الحجز (معلق، مؤكد، ملغي، مسترد)
@@ -38,6 +42,7 @@
 - ✅ إرسال تأكيدات عبر البريد الإلكتروني
 
 ### 📊 لوحة الإدارة التحليلية
+
 - ✅ إحصائيات شاملة (الحجوزات، الإيرادات، المستخدمين، الأفلام)
 - ✅ تحليل المستخدمين (جدد، نشطين، اتجاهات التسجيل)
 - ✅ تحليل الحجوزات (متوسط القيمة، المقاعد المحجوزة، أوقات الذروة)
@@ -47,6 +52,7 @@
 - ✅ النشاط الحديث (حجوزات، مستخدمين، أفلام جديدة)
 
 ### 🔒 الأمان والأداء
+
 - ✅ JWT Authentication مع HttpOnly Cookies
 - ✅ Rate Limiting لجميع الطلبات
 - ✅ Input Validation و Sanitization
@@ -55,6 +61,7 @@
 - ✅ Encryption للبيانات الحساسة
 
 ### 📧 نظام الإشعارات
+
 - ✅ إرسال OTP للتحقق من البريد الإلكتروني
 - ✅ تأكيدات الحجز والدفع
 - ✅ إشعارات إلغاء الحجز
@@ -63,6 +70,7 @@
 ## 🛠️ التقنيات المستخدمة
 
 ### Backend
+
 - **Node.js** - Runtime Environment
 - **Express.js** - Web Framework
 - **MongoDB** - NoSQL Database
@@ -77,6 +85,7 @@
 - **Express Validator** - Input Validation
 
 ### DevOps & Tools
+
 - **Nodemon** - Development Server
 - **TSX** - TypeScript Execution
 - **Dotenv** - Environment Variables
@@ -85,6 +94,7 @@
 ## 🚀 البدء السريع
 
 ### متطلبات النظام
+
 - Node.js 18+
 - MongoDB 7+
 - Git
@@ -152,6 +162,7 @@ npm start
 ### المسارات الرئيسية
 
 #### 🔐 Authentication Routes (`/api/auth`)
+
 - `POST /api/auth/register` - تسجيل مستخدم جديد
 - `POST /api/auth/login` - تسجيل الدخول
 - `POST /api/auth/logout` - تسجيل الخروج
@@ -161,6 +172,7 @@ npm start
 - `POST /api/auth/reset-password` - إعادة تعيين كلمة المرور
 
 #### 🎬 Movies Routes (`/api/movies`)
+
 - `GET /api/movies/allMovies` - جلب جميع الأفلام مع ترقيم الصفحات
 - `POST /api/movies/addMovie` - إضافة فيلم جديد (Admin)
 - `PUT /api/movies/updateMovie/:id` - تحديث فيلم (Admin)
@@ -174,8 +186,12 @@ npm start
 - `GET /api/movies/featured` - الأفلام المميزة
 - `GET /api/movies/autocomplete` - اقتراحات البحث
 - `GET /api/movies/latest-trailers` - أحدث المقاطع الدعائية
+- `GET /api/movies/by-date?date=YYYY-MM-DD` - جدولة الأفلام حسب التاريخ
+- `GET /api/movies/seat-layout/:movieId/:slotId` - تخطيط المقاعد للحجز
+- `GET /api/movies/seat-layout/:movieId/:slotId` - تخطيط المقاعد للحجز
 
 #### 🎫 Booking Routes (`/api/bookings`)
+
 - `POST /api/bookings/addBooking` - إنشاء حجز جديد
 - `GET /api/bookings/allBookings` - جلب جميع الحجوزات (Admin with pagination)
 - `GET /api/bookings/userBookings/:userId` - حجوزات مستخدم محدد
@@ -185,11 +201,13 @@ npm start
 - `PUT /api/bookings/priceBookings/:bookingId` - تحديث سعر التذكرة
 
 #### 📊 Admin Routes (`/api/admin`)
+
 - `GET /api/admin/dashboard-stats` - إحصائيات لوحة التحكم
 
 ## 🗄️ Database Schema
 
 ### User Schema
+
 ```typescript
 {
   fullName: String,
@@ -205,6 +223,7 @@ npm start
 ```
 
 ### Movie Schema
+
 ```typescript
 {
   title: String,
@@ -234,6 +253,7 @@ npm start
 ```
 
 ### Booking Schema
+
 ```typescript
 {
   movieId: ObjectId,
@@ -257,9 +277,147 @@ npm start
 }
 ```
 
+## 💺 نظام أنواع الكراسي المتقدم
+
+**نظام مرن لأنواع الكراسي** - يدعم أسعار مختلفة لكل نوع (VIP، Regular، Premium):
+
+### مميزات النظام:
+
+- **أنواع كراسي متعددة**: VIP، Regular، Premium مع أسعار مختلفة
+- **إدارة دقيقة للمقاعد**: عدد محدود لكل نوع
+- **عرض تفاعلي**: Seat Layout API لعرض المقاعد المتاحة
+- **حجز ذكي**: منع الحجز المزدوج وحساب السعر التلقائي
+- **إدارة تلقائية**: حساب إجمالي المقاعد والمتاحة من seatTypes
+
+### مثال على البيانات:
+
+```json
+{
+  "seatTypes": [
+    {
+      "type": "VIP",
+      "price": 250,
+      "totalSeats": 50,
+      "availableSeats": 45,
+      "label": "VIP Section - Front Rows"
+    },
+    {
+      "type": "Regular",
+      "price": 150,
+      "totalSeats": 100,
+      "availableSeats": 87,
+      "label": "Regular Seats"
+    },
+    {
+      "type": "Premium",
+      "price": 200,
+      "totalSeats": 30,
+      "availableSeats": 28,
+      "label": "Premium Seats - Middle Rows"
+    }
+  ],
+  "totalSeats": 180, // محسوب تلقائياً
+  "availableSeats": 160 // محسوب تلقائياً
+}
+```
+
+---
+
+## 📅 جدولة الأفلام اليومية
+
+**Movies by Date API** - يعرض الأفلام المعروضة في تاريخ محدد مع مواعيدها والقاعات:
+
+#### استخدام:
+
+```javascript
+// جلب أفلام اليوم
+GET /api/movies/by-date
+
+// جلب أفلام تاريخ محدد
+GET /api/movies/by-date?date=2024-12-15
+```
+
+#### Response مثال:
+
+```json
+{
+  "statusMsg": "success",
+  "date": "2024-12-10",
+  "totalMovies": 3,
+  "movies": [
+    {
+      "id": "...",
+      "title": "Avengers: Endgame",
+      "poster": "https://...",
+      "rating": 8.4,
+      "schedule": {
+        "Auditorium 1": [
+          {
+            "time": "14:30",
+            "ampm": "PM",
+            "price": 150,
+            "availableSeats": 45,
+            "totalSeats": 100
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 🎫 Seat Layout API
+
+**عرض تفاعلي للمقاعد** - يظهر المقاعد المتاحة والمحجوزة لكل عرض:
+
+#### استخدام:
+
+```javascript
+GET / api / movies / seat - layout / { movieId } / { slotId };
+```
+
+#### Response مثال:
+
+```json
+{
+  "statusMsg": "success",
+  "seatLayout": {
+    "movieId": "...",
+    "slotId": "...",
+    "movieTitle": "Avengers: Endgame",
+    "showtime": "14:30 PM",
+    "date": "2024-12-15T00:00:00.000Z",
+    "auditorium": "Auditorium 1",
+    "seatTypes": [
+      {
+        "type": "VIP",
+        "label": "VIP Section - Front Rows",
+        "price": 250,
+        "totalSeats": 50,
+        "availableSeats": ["V1A1", "V1A2", "V1A3", ...],
+        "bookedSeats": ["V1A5", "V1A6"]
+      },
+      {
+        "type": "Regular",
+        "label": "Regular Seats",
+        "price": 150,
+        "totalSeats": 100,
+        "availableSeats": ["R2B1", "R2B2", "R2B3", ...],
+        "bookedSeats": ["R2B5", "R2B7"]
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 🎨 لوحة الإدارة التحليلية
 
 ### الإحصائيات المتاحة:
+
 - **الإحصائيات الأساسية**: الحجوزات، الإيرادات، المستخدمين، الأفلام
 - **تحليل المستخدمين**: المستخدمين الجدد والنشطين واتجاهات التسجيل
 - **تحليل الحجوزات**: متوسط القيمة، المقاعد المحجوزة، أوقات الذروة، معدل الإشغال
@@ -268,16 +426,17 @@ npm start
 - **تحليل التصنيفات**: أداء كل تصنيف فيلم
 - **النشاط الحديث**: آخر الحجوزات والمستخدمين والأفلام
 
-
 ### إعداد الإنتاج
 
 1. **إعداد MongoDB**:
+
    ```bash
    # استخدم MongoDB Atlas أو قاعدة بيانات محلية
    MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/cinema-prod
    ```
 
 2. **إعداد Stripe**:
+
    ```bash
    # احصل على مفاتيح Stripe من لوحة التحكم
    STRIPE_SECRET_KEY=sk_live_...
@@ -291,8 +450,33 @@ npm start
    GMAIL_APP_PASSWORD=app-specific-password
    ```
 
+## 🎬 إضافة أفلام مع أنواع كراسي
 
+### مثال شامل لإضافة فيلم:
 
+```javascript
+// في Postman - POST /api/movies/addMovie
+// Headers: Authorization: Bearer YOUR_ADMIN_TOKEN
+
+// Form Data Fields:
+title = Avengers: Endgame
+description = After the devastating events of Avengers: Infinity War...
+duration = 181
+rating = 8.4
+year = 2019
+category = now-showing
+genres = ["Action", "Adventure", "Drama", "Sci-Fi"]
+directors = [{"name": "Anthony Russo", "role": "Director"}]
+cast = [{"name": "Robert Downey Jr.", "role": "Tony Stark"}]
+auditoriums = ["Auditorium 1", "Auditorium 2"]
+slots = [{"date": "2024-12-15", "time": "14:30", "ampm": "PM", "seatTypes": [{"type": "VIP", "price": 250, "totalSeats": 50, "availableSeats": 50, "label": "VIP Section"}, {"type": "Regular", "price": 150, "totalSeats": 100, "availableSeats": 100, "label": "Regular Seats"}]}]
+poster = [Upload image file]
+```
+
+### ملفات جاهزة:
+
+- `movie-data.json` - البيانات كاملة بتنسيق JSON
+- `movie-formdata.txt` - البيانات جاهزة للنسخ في Postman
 
 ## 🙏 شكر وتقدير
 

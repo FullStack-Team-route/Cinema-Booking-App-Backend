@@ -32,25 +32,55 @@ export const createBooking = async (req: Request, res: Response) => {
     if (!foundSlot)
       return res.status(404).json({ message: "Showtime slot not found" });
 
-    // ---------- Check seat availability ----------
-    const unavailableSeats = seats.filter((seat: string) =>
-      foundSlot.bookedSeats?.includes(seat)
-    );
+    // ---------- Check seat availability for each seat type ----------
+    const unavailableSeats: string[] = [];
+    const seatsToBook: any[] = [];
+
+    for (const seat of seats) {
+      // Check if seat is already booked
+      const isBooked = foundSlot.bookedSeats?.some(
+        (booked: any) => booked.seatId === seat.seatId
+      );
+
+      if (isBooked) {
+        unavailableSeats.push(seat.seatId);
+      } else {
+        // Find the seat type to reduce available seats
+        const seatType = (foundSlot as any).seatTypes.find(
+          (type: any) => type.type === seat.seatType
+        );
+        if (seatType && seatType.availableSeats > 0) {
+          seatsToBook.push(seat);
+          seatType.availableSeats -= 1;
+        } else {
+          unavailableSeats.push(seat.seatId);
+        }
+      }
+    }
 
     if (unavailableSeats.length > 0) {
       return res.status(400).json({
-        message: `Seats already booked: ${unavailableSeats.join(", ")}`,
+        message: `Seats not available: ${unavailableSeats.join(", ")}`,
       });
     }
 
     // Initialize bookedSeats if undefined
     if (!foundSlot.bookedSeats) foundSlot.bookedSeats = [];
 
-    // Add seats to slot
-    foundSlot.bookedSeats.push(...seats);
+    // Add seats to slot with new format
+    const bookedSeatsData = seatsToBook.map((seat) => ({
+      seatType: seat.seatType,
+      seatNumber: seat.seatId,
+      seatId: seat.seatId,
+    }));
 
-    // Reduce available seats
-    foundSlot.availableSeats -= seats.length;
+    foundSlot.bookedSeats.push(...bookedSeatsData);
+
+    // Update total available seats
+    foundSlot.availableSeats = (foundSlot as any).seatTypes.reduce(
+      (total: number, type: any) => total + type.availableSeats,
+      0
+    );
 
     await movie.save();
 
@@ -64,6 +94,7 @@ export const createBooking = async (req: Request, res: Response) => {
       userId,
       customer,
       movie: movieData,
+      slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
       auditorium: movie.auditoriums?.[0] || "Auditorium 1",
       totalPrice,
@@ -298,6 +329,39 @@ export const cancelBooking = async (req: Request, res: Response) => {
 
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    // Return seats to available if booking was confirmed
+    if (booking.status === "confirmed") {
+      const movie = await Movie.findById(booking.movieId);
+      if (movie) {
+        const slot = movie.slots.id(booking.slotId);
+        if (slot) {
+          // Remove booked seats from slot
+          (slot as any).bookedSeats = (slot as any).bookedSeats.filter(
+            (booked: any) =>
+              !booking.seats.some((seat: any) => seat.seatId === booked.seatId)
+          );
+
+          // Return seats to available by type
+          booking.seats.forEach((seat: any) => {
+            const seatType = (slot as any).seatTypes.find(
+              (type: any) => type.type === seat.seatType
+            );
+            if (seatType) {
+              seatType.availableSeats += 1;
+            }
+          });
+
+          // Update total available seats
+          slot.availableSeats = (slot as any).seatTypes.reduce(
+            (total: number, type: any) => total + type.availableSeats,
+            0
+          );
+
+          await movie.save();
+        }
+      }
+    }
 
     booking.status = "cancelled";
     await booking.save();

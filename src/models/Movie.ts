@@ -46,15 +46,40 @@ const TrailerSchema = new mongoose.Schema<ITrailer>(
   { _id: false }
 );
 
+// Seat Type Schema
+const SeatTypeSchema = new mongoose.Schema(
+  {
+    type: { type: String, required: true }, // "VIP", "Regular", "Premium"
+    price: { type: Number, required: true }, // سعر الكرسي من هذا النوع
+    totalSeats: { type: Number, required: true }, // عدد الكراسي المتاحة من هذا النوع
+    availableSeats: { type: Number, required: true }, // الكراسي المتاحة حالياً
+    label: { type: String, required: true }, // "VIP Section", "Regular Seats"
+  },
+  { _id: false }
+);
+
 // Showtime/Slot Schema
-export const SlotSchema = new mongoose.Schema<ISlot>(
+export const SlotSchema = new mongoose.Schema(
   {
     date: { type: Date, required: true },
     time: { type: String, required: true }, // "14:30"
     ampm: { type: String, enum: ["AM", "PM"], default: "PM" },
-    price: { type: Number, required: true }, // ticket price
-    availableSeats: { type: Number, default: 100 },
-    totalSeats: { type: Number, default: 100 },
+
+    // بدلاً من price واحد، سنستخدم seatTypes
+    seatTypes: [SeatTypeSchema],
+
+    // إجمالي المقاعد من جميع الأنواع
+    totalSeats: { type: Number, default: 0 },
+    availableSeats: { type: Number, default: 0 },
+
+    // bookedSeats الآن سيكون object يحدد النوع والمقعد
+    bookedSeats: [
+      {
+        seatType: String, // "VIP", "Regular"
+        seatNumber: String, // "A1", "B2"
+        seatId: String, // معرف فريد للمقعد
+      },
+    ],
   },
   { _id: true }
 );
