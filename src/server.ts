@@ -5,6 +5,7 @@ import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/BookingRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
@@ -21,18 +22,18 @@ const API_RATE_WINDOW_MS = toNumber(
   process.env.RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000
 ); // default 15m
-const API_RATE_MAX = toNumber(process.env.RATE_LIMIT_MAX, 300); // default 300 reqs / window
+const API_RATE_MAX = toNumber(process.env.RATE_LIMIT_MAX, 300); 
 
 const LOGIN_RATE_WINDOW_MS = toNumber(
   process.env.LOGIN_RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000
 );
-const LOGIN_RATE_MAX = toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 10); // tighter for login
+const LOGIN_RATE_MAX = toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 10);  
 const FORGOT_RATE_WINDOW_MS = toNumber(
   process.env.FORGOT_RATE_LIMIT_WINDOW_MS,
   60 * 60 * 1000
 ); // default 1h
-const FORGOT_RATE_MAX = toNumber(process.env.FORGOT_RATE_LIMIT_MAX, 10); // default 5 requests / hour
+const FORGOT_RATE_MAX = toNumber(process.env.FORGOT_RATE_LIMIT_MAX, 10); 
 
 const apiLimiter = rateLimit({
   windowMs: API_RATE_WINDOW_MS,
@@ -89,6 +90,7 @@ await connectDB();
 app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));

@@ -1,0 +1,371 @@
+# 🎬 Cinema Booking System
+
+> **نظام شامل لحجز تذاكر السينما مع لوحة إدارة متقدمة**
+
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7+-blue.svg)](https://www.mongodb.com/)
+[![Express](https://img.shields.io/badge/Express-5+-black.svg)](https://expressjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
+[![Stripe](https://img.shields.io/badge/Stripe-Payments-635bff.svg)](https://stripe.com/)
+[![JWT](https://img.shields.io/badge/JWT-Authentication-000000.svg)](https://jwt.io/)
+
+## 📋 نظرة عامة
+
+نظام شامل لحجز تذاكر السينما مبني باستخدام **MERN Stack** مع التركيز على الأمان والأداء العالي. يوفر تجربة متكاملة للمستخدمين والإدارة مع لوحة تحكم تحليلية متقدمة.
+
+## ✨ المميزات الرئيسية
+
+### 👥 نظام المصادقة والمستخدمين
+- ✅ تسجيل وتسجيل دخول آمن مع JWT
+- ✅ إدارة البروفايل والتحقق من البريد الإلكتروني
+- ✅ إعادة تعيين كلمة المرور مع OTP
+- ✅ نظام أدوار (User/Admin)
+- ✅ Rate Limiting للحماية من الهجمات
+
+### 🎭 إدارة الأفلام
+- ✅ CRUD كامل للأفلام مع رفع الصور
+- ✅ إدارة التصنيفات والعروض والقاعات
+- ✅ بحث وفلترة متقدمة (نوع، تصنيف، سنة، تقييم، مخرج، ممثل)
+- ✅ دعم المقاطع الدعائية والتريلرز
+- ✅ إدارة حالة الفيلم (معروض، قادم قريباً، مميز)
+
+### 🎫 نظام الحجوزات المتقدم
+- ✅ حجز المقاعد التفاعلي
+- ✅ دفع آمن عبر Stripe
+- ✅ تأكيد فوري للحجز والدفع
+- ✅ إدارة حالة الحجز (معلق، مؤكد، ملغي، مسترد)
+- ✅ منع الازدواج في حجز المقاعد
+- ✅ إرسال تأكيدات عبر البريد الإلكتروني
+
+### 📊 لوحة الإدارة التحليلية
+- ✅ إحصائيات شاملة (الحجوزات، الإيرادات، المستخدمين، الأفلام)
+- ✅ تحليل المستخدمين (جدد، نشطين، اتجاهات التسجيل)
+- ✅ تحليل الحجوزات (متوسط القيمة، المقاعد المحجوزة، أوقات الذروة)
+- ✅ تحليل الإيرادات (يومي، أسبوعي، شهري، اتجاهات)
+- ✅ تحليل الأفلام (الأكثر حجزاً، الإيرادات، معدل الإشغال)
+- ✅ تحليل التصنيفات (أداء كل نوع فيلم)
+- ✅ النشاط الحديث (حجوزات، مستخدمين، أفلام جديدة)
+
+### 🔒 الأمان والأداء
+- ✅ JWT Authentication مع HttpOnly Cookies
+- ✅ Rate Limiting لجميع الطلبات
+- ✅ Input Validation و Sanitization
+- ✅ CORS Configuration
+- ✅ Protection من SQL Injection و XSS
+- ✅ Encryption للبيانات الحساسة
+
+### 📧 نظام الإشعارات
+- ✅ إرسال OTP للتحقق من البريد الإلكتروني
+- ✅ تأكيدات الحجز والدفع
+- ✅ إشعارات إلغاء الحجز
+- ✅ Templates جميلة ومتجاوبة
+
+## 🛠️ التقنيات المستخدمة
+
+### Backend
+- **Node.js** - Runtime Environment
+- **Express.js** - Web Framework
+- **MongoDB** - NoSQL Database
+- **Mongoose** - ODM for MongoDB
+- **TypeScript** - Type Safety
+- **JWT** - Authentication
+- **Bcrypt** - Password Hashing
+- **Stripe** - Payment Processing
+- **Nodemailer** - Email Service
+- **Multer** - File Upload
+- **Express Rate Limit** - Rate Limiting
+- **Express Validator** - Input Validation
+
+### DevOps & Tools
+- **Nodemon** - Development Server
+- **TSX** - TypeScript Execution
+- **Dotenv** - Environment Variables
+- **CORS** - Cross-Origin Resource Sharing
+
+## 🚀 البدء السريع
+
+### متطلبات النظام
+- Node.js 18+
+- MongoDB 7+
+- Git
+
+### التثبيت
+
+```bash
+# استنساخ المشروع
+git clone https://github.com/your-username/cinema-booking-system.git
+cd cinema-booking-system/backend
+
+# تثبيت التبعيات
+npm install
+
+# إعداد متغيرات البيئة
+cp .env.example .env
+```
+
+### إعداد متغيرات البيئة
+
+```env
+# Database
+MONGODB_URI=mongodb://localhost:27017/cinema-booking
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key
+JWT_EXPIRES_IN=7d
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+
+# Email (Gmail)
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
+EMAIL_FROM=Cinema Booking <your-email@gmail.com>
+
+# Server
+PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=300
+LOGIN_RATE_LIMIT_WINDOW_MS=900000
+LOGIN_RATE_LIMIT_MAX=10
+FORGOT_RATE_LIMIT_WINDOW_MS=3600000
+FORGOT_RATE_LIMIT_MAX=5
+```
+
+### تشغيل المشروع
+
+```bash
+# Development
+npm run dev
+
+# Production
+npm run build
+npm start
+```
+
+## 📚 API Documentation
+
+### المسارات الرئيسية
+
+#### 🔐 Authentication Routes (`/api/auth`)
+- `POST /api/auth/register` - تسجيل مستخدم جديد
+- `POST /api/auth/login` - تسجيل الدخول
+- `POST /api/auth/logout` - تسجيل الخروج
+- `GET /api/auth/current-user` - جلب بيانات المستخدم الحالي
+- `POST /api/auth/forgot-password` - طلب إعادة تعيين كلمة المرور
+- `POST /api/auth/verify-otp` - التحقق من OTP
+- `POST /api/auth/reset-password` - إعادة تعيين كلمة المرور
+
+#### 🎬 Movies Routes (`/api/movies`)
+- `GET /api/movies/allMovies` - جلب جميع الأفلام مع ترقيم الصفحات
+- `POST /api/movies/addMovie` - إضافة فيلم جديد (Admin)
+- `PUT /api/movies/updateMovie/:id` - تحديث فيلم (Admin)
+- `DELETE /api/movies/deleteMovie/:id` - حذف فيلم (Admin)
+- `GET /api/movies/getSpecificMovie/:id` - جلب تفاصيل فيلم محدد
+- `GET /api/movies/search` - بحث متقدم في الأفلام
+- `GET /api/movies/genre/:genre` - الأفلام حسب التصنيف
+- `GET /api/movies/year/:year` - الأفلام حسب السنة
+- `GET /api/movies/person/:name/:role` - الأفلام حسب الشخص
+- `GET /api/movies/top-rated` - أفضل الأفلام تقييماً
+- `GET /api/movies/featured` - الأفلام المميزة
+- `GET /api/movies/autocomplete` - اقتراحات البحث
+- `GET /api/movies/latest-trailers` - أحدث المقاطع الدعائية
+
+#### 🎫 Booking Routes (`/api/bookings`)
+- `POST /api/bookings/addBooking` - إنشاء حجز جديد
+- `GET /api/bookings/allBookings` - جلب جميع الحجوزات (Admin with pagination)
+- `GET /api/bookings/userBookings/:userId` - حجوزات مستخدم محدد
+- `PUT /api/bookings/updateBookings/:bookingId` - تحديث حجز
+- `PUT /api/bookings/confirmBookings/:bookingId` - تأكيد حجز
+- `PUT /api/bookings/cancelBookings/:bookingId` - إلغاء حجز
+- `PUT /api/bookings/priceBookings/:bookingId` - تحديث سعر التذكرة
+
+#### 📊 Admin Routes (`/api/admin`)
+- `GET /api/admin/dashboard-stats` - إحصائيات لوحة التحكم
+
+## 🗄️ Database Schema
+
+### User Schema
+```typescript
+{
+  fullName: String,
+  username: String (unique),
+  email: String (unique),
+  phoneNumber: String,
+  birthDate: Date,
+  password: String (hashed),
+  role: "user" | "admin",
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Movie Schema
+```typescript
+{
+  title: String,
+  originalTitle: String,
+  description: String,
+  shortDescription: String,
+  poster: String,
+  trailer: {
+    url: String,
+    thumbnail: String,
+    duration: Number
+  },
+  genres: [String],
+  year: Number,
+  rating: Number (0-10),
+  duration: Number,
+  directors: [PersonSchema],
+  cast: [PersonSchema],
+  slots: [SlotSchema],
+  auditoriums: [String],
+  category: "now-showing" | "coming-soon" | "featured",
+  isActive: Boolean,
+  featured: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Booking Schema
+```typescript
+{
+  movieId: ObjectId,
+  userId: ObjectId,
+  customer: String,
+  movie: {
+    id: ObjectId,
+    title: String,
+    poster: String,
+    rating: Number
+  },
+  showtime: String,
+  auditorium: String,
+  seats: [String],
+  totalPrice: Number,
+  status: "pending" | "confirmed" | "cancelled" | "refunded",
+  bookingReference: String,
+  paymentId: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+## 🎨 لوحة الإدارة التحليلية
+
+### الإحصائيات المتاحة:
+- **الإحصائيات الأساسية**: الحجوزات، الإيرادات، المستخدمين، الأفلام
+- **تحليل المستخدمين**: المستخدمين الجدد والنشطين واتجاهات التسجيل
+- **تحليل الحجوزات**: متوسط القيمة، المقاعد المحجوزة، أوقات الذروة، معدل الإشغال
+- **تحليل الإيرادات**: الإيرادات اليومية/أسبوعية/شهرية والاتجاهات
+- **تحليل الأفلام**: الأكثر حجزاً والإيرادات ومعدل الإشغال
+- **تحليل التصنيفات**: أداء كل تصنيف فيلم
+- **النشاط الحديث**: آخر الحجوزات والمستخدمين والأفلام
+
+## 🔧 Testing
+
+```bash
+# تشغيل الاختبارات
+npm test
+
+# تشغيل الاختبارات مع Coverage
+npm run test:coverage
+```
+
+## 🚀 النشر (Deployment)
+
+### إعداد الإنتاج
+
+1. **إعداد MongoDB**:
+   ```bash
+   # استخدم MongoDB Atlas أو قاعدة بيانات محلية
+   MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/cinema-prod
+   ```
+
+2. **إعداد Stripe**:
+   ```bash
+   # احصل على مفاتيح Stripe من لوحة التحكم
+   STRIPE_SECRET_KEY=sk_live_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
+
+3. **إعداد البريد الإلكتروني**:
+   ```bash
+   # استخدم Gmail أو خدمة بريد إلكتروني أخرى
+   GMAIL_USER=admin@cinema.com
+   GMAIL_APP_PASSWORD=app-specific-password
+   ```
+
+### استخدام Docker (اختياري)
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 5000
+CMD ["npm", "start"]
+```
+
+```bash
+# بناء وتشغيل Docker
+docker build -t cinema-backend .
+docker run -p 5000:5000 cinema-backend
+```
+
+### نشر على Heroku
+
+```bash
+# إعداد Heroku
+heroku create cinema-booking-api
+heroku config:set NODE_ENV=production
+heroku config:set MONGODB_URI=your_mongodb_uri
+heroku config:set JWT_SECRET=your_jwt_secret
+# ... باقي المتغيرات
+
+# النشر
+git push heroku main
+```
+
+## 🤝 المساهمة
+
+نرحب بالمساهمات! يرجى اتباع الخطوات التالية:
+
+1. Fork المشروع
+2. إنشاء فرع للميزة (`git checkout -b feature/AmazingFeature`)
+3. Commit التغييرات (`git commit -m 'Add some AmazingFeature'`)
+4. Push للفرع (`git push origin feature/AmazingFeature`)
+5. فتح Pull Request
+
+### معايير الكود
+- استخدام TypeScript للـ type safety
+- اتباع ESLint rules
+- كتابة اختبارات للوظائف الجديدة
+- تحديث التوثيق
+
+## 📝 الترخيص
+
+هذا المشروع مرخص تحت رخصة MIT - انظر ملف [LICENSE](LICENSE) للتفاصيل.
+
+## 📞 الدعم
+
+للاستفسارات أو الدعم:
+- **Email**: support@cinemabooking.com
+- **Issues**: [GitHub Issues](https://github.com/your-username/cinema-booking-system/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/cinema-booking-system/discussions)
+
+## 🙏 شكر وتقدير
+
+شكراً لجميع المساهمين والمطورين الذين ساهموا في تطوير هذا النظام!
+
+---
+
+**Built with ❤️ for movie lovers everywhere** 🎬✨
