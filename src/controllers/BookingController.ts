@@ -2,7 +2,6 @@ import type { Request, Response } from "express";
 import Booking from "../models/Booking.js";
 import { Movie } from "../models/Movie.js";
 
-
 // ===============================
 //  Create Booking
 // ===============================
@@ -16,7 +15,7 @@ export const createBooking = async (req: Request, res: Response) => {
       slotId,
       seats,
       totalPrice,
-      paymentId
+      paymentId,
     } = req.body;
 
     if (!movieId || !userId || !customer || !movieData || !slotId || !seats) {
@@ -84,20 +83,109 @@ export const createBooking = async (req: Request, res: Response) => {
   }
 };
 
-
 // ===============================
-//  Get All Bookings
+//  Get All Bookings (Admin - with pagination & filtering)
 // ===============================
 export const getAllBookings = async (req: Request, res: Response) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    return res.status(200).json(bookings);
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      movieId,
+      startDate,
+      endDate,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      customer,
+      minPrice,
+      maxPrice,
+    } = req.query as any;
+
+    const filter: any = {};
+    // Filter by status
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    // Filter by movie
+    if (movieId) {
+      filter.movieId = movieId;
+    }
+
+    // Filter by customer name (case insensitive)
+    if (customer) {
+      filter.customer = { $regex: customer, $options: "i" };
+    }
+
+    // Filter by price range
+    if (minPrice || maxPrice) {
+      filter.totalPrice = {};
+      if (minPrice) {
+        filter.totalPrice.$gte = Number(minPrice);
+      }
+      if (maxPrice) {
+        filter.totalPrice.$lte = Number(maxPrice);
+      }
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Build sort object
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    // Get total count for pagination
+    const total = await Booking.countDocuments(filter);
+    const totalPages = Math.ceil(total / Number(limit));
+
+    // Get paginated results
+    const bookings = await Booking.find(filter)
+      .populate("movieId", "title poster")
+      .populate("userId", "fullName email")
+      .sort(sortOptions)
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
+
+    return res.status(200).json({
+      statusMsg: "success",
+      data: {
+        bookings,
+
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages,
+        hasNext: Number(page) < totalPages,
+        hasPrev: Number(page) > 1,
+
+        filters: {
+          applied: Object.keys(filter).length > 0,
+          status,
+          movieId,
+          startDate,
+          endDate,
+          customer,
+          minPrice,
+          maxPrice,
+        },
+      },
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // ===============================
 //  Get Bookings by User
@@ -118,7 +206,6 @@ export const getUserBookings = async (req: Request, res: Response) => {
   }
 };
 
-
 // ===============================
 //  Update Booking
 // ===============================
@@ -129,8 +216,7 @@ export const updateBooking = async (req: Request, res: Response) => {
 
     const booking = await Booking.findById(bookingId);
 
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found" });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     if (booking.status === "confirmed" || booking.status === "cancelled") {
       return res.status(400).json({
@@ -151,7 +237,6 @@ export const updateBooking = async (req: Request, res: Response) => {
   }
 };
 
-
 // ===============================
 //  Save (Update) Ticket Price
 // ===============================
@@ -165,8 +250,7 @@ export const saveTicketPrice = async (req: Request, res: Response) => {
 
     const booking = await Booking.findById(bookingId);
 
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found" });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     booking.totalPrice = totalPrice;
     await booking.save();
@@ -175,13 +259,11 @@ export const saveTicketPrice = async (req: Request, res: Response) => {
       message: "Ticket price updated successfully",
       booking,
     });
-
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // ===============================
 //  Confirm Booking
@@ -192,8 +274,7 @@ export const confirmBooking = async (req: Request, res: Response) => {
 
     const booking = await Booking.findById(bookingId);
 
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found" });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     booking.status = "confirmed";
     await booking.save();
@@ -202,13 +283,11 @@ export const confirmBooking = async (req: Request, res: Response) => {
       message: "Booking confirmed successfully",
       booking,
     });
-
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // ===============================
 //  Cancel Booking
@@ -218,8 +297,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
     const { bookingId } = req.params;
 
     const booking = await Booking.findById(bookingId);
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found" });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     booking.status = "cancelled";
     await booking.save();
@@ -228,7 +306,6 @@ export const cancelBooking = async (req: Request, res: Response) => {
       message: "Booking cancelled successfully",
       booking,
     });
-
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });

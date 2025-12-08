@@ -26,7 +26,6 @@ const OtpSchema = new mongoose.Schema<IOtp>(
     verificationToken: {
       type: String,
       required: true,
-      unique: true,
     },
     expiresAt: {
       type: Date,
