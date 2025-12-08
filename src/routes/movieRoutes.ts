@@ -50,6 +50,8 @@ router.put(
   updateMovie
 );
 
+
+
 // =============================
 // Delete movie (Admin only)
 // =============================
