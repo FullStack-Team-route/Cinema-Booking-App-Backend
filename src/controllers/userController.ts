@@ -7,6 +7,7 @@ import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
 import {
   validateRegister,
   validateLogin,
+  validateResetPassword,
 } from "../middlewares/validationMiddleware.js";
 
 export const registerUser = async (
@@ -600,14 +601,6 @@ export const resetPassword = async (
       return res.status(404).json({
         statusMsg: "fail",
         message: "User not found",
-      });
-    }
-
-    // Check new password length
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "New password must be at least 6 characters long",
       });
     }
 

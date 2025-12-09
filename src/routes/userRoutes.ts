@@ -15,6 +15,7 @@ import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import {
   validateRegister,
   validateLogin,
+  validateResetPassword,
 } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
@@ -41,6 +42,6 @@ router.post("/forgot-password", forgotPassword);
 
 router.post("/verify-otp", verifyOtp);
 
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", validateResetPassword, resetPassword);
 
 export default router;

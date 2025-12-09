@@ -148,3 +148,35 @@ export const validateLogin = (
 
   next();
 };
+
+// Validation middleware for password reset
+export const validateResetPassword = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { newPassword } = req.body;
+  const errors: string[] = [];
+
+  // Validate newPassword
+  if (!newPassword || typeof newPassword !== "string") {
+    errors.push("New password is required");
+  } else if (!isValidPassword(newPassword)) {
+    errors.push(
+      "Password must be at least 6 characters long and contain at least one letter and one number"
+    );
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      statusMsg: "fail",
+      message: "Validation failed",
+      errors,
+    });
+  }
+
+  // Sanitize inputs
+  req.body.newPassword = newPassword.trim();
+
+  next();
+};
