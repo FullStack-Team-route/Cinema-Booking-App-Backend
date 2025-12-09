@@ -5,16 +5,6 @@ export interface IBooking extends Document {
   userId: Types.ObjectId;
   customer: string;
 
-  movie: {
-    id: Types.ObjectId;
-    title: string;
-    poster?: string;
-    duration?: string;
-    category?: string;
-    year?: number;
-    rating?: number;
-  };
-
   slotId: string; // Added for seat management
   showtime: string;
   auditorium: string;
@@ -31,16 +21,6 @@ const bookingSchema = new Schema<IBooking>(
     movieId: { type: Schema.Types.ObjectId, ref: "Movie", required: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     customer: { type: String, required: true },
-
-    movie: {
-      id: { type: Schema.Types.ObjectId, required: true },
-      title: { type: String, required: true },
-      poster: { type: String },
-      duration: { type: String },
-      category: { type: String },
-      year: { type: Number },
-      rating: { type: Number },
-    },
 
     slotId: {
       type: String,

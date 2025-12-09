@@ -4,6 +4,10 @@ import { Otp } from "../models/Otp.js";
 import { generateToken } from "../utils/generateToken.js";
 import { sendOtpEmail } from "../utils/emailService.js";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
+import {
+  validateRegister,
+  validateLogin,
+} from "../middlewares/validationMiddleware.js";
 
 export const registerUser = async (
   req: Request,
@@ -14,12 +18,19 @@ export const registerUser = async (
     const { fullName, username, email, phoneNumber, birthDate, password } =
       req.body;
 
-    const existing = await User.findOne({ email });
-
-    if (existing)
+    // Check for email uniqueness
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail)
       return res
         .status(400)
         .json({ statusMsg: "fail", message: "Email is already in use" });
+
+    // Check for username uniqueness
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername)
+      return res
+        .status(400)
+        .json({ statusMsg: "fail", message: "Username is already taken" });
 
     const user = new User({
       fullName,

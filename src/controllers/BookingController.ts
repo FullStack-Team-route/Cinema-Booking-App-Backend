@@ -7,18 +7,10 @@ import { Movie } from "../models/Movie.js";
 // ===============================
 export const createBooking = async (req: Request, res: Response) => {
   try {
-    const {
-      movieId,
-      userId,
-      customer,
-      movieData,
-      slotId,
-      seats,
-      totalPrice,
-      paymentId,
-    } = req.body;
+    const { movieId, userId, customer, slotId, seats, totalPrice, paymentId } =
+      req.body;
 
-    if (!movieId || !userId || !customer || !movieData || !slotId || !seats) {
+    if (!movieId || !userId || !customer || !slotId || !seats) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -93,7 +85,6 @@ export const createBooking = async (req: Request, res: Response) => {
       movieId,
       userId,
       customer,
-      movie: movieData,
       slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
       auditorium: movie.auditoriums?.[0] || "Auditorium 1",
