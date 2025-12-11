@@ -298,7 +298,6 @@ export const saveTicketPrice = async (req: Request, res: Response) => {
 export const confirmBooking = async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
-
     const booking = await Booking.findById(bookingId);
 
     if (!booking) return res.status(404).json({ message: "Booking not found" });
