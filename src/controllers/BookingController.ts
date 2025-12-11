@@ -219,7 +219,12 @@ export const getUserBookings = async (req: Request, res: Response) => {
     if (!userId)
       return res.status(400).json({ message: "User ID is required" });
 
-    const bookings = await Booking.find({ userId }).sort({ createdAt: -1 });
+    const bookings = await Booking.find({ userId })
+      .populate(
+        "movieId",
+        "title poster genres duration rating releaseDate description"
+      )
+      .sort({ createdAt: -1 });
 
     return res.status(200).json(bookings);
   } catch (error) {
