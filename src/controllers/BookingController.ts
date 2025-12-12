@@ -215,18 +215,63 @@ export const getAllBookings = async (req: Request, res: Response) => {
 export const getUserBookings = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query as any;
 
     if (!userId)
       return res.status(400).json({ message: "User ID is required" });
 
-    const bookings = await Booking.find({ userId })
+    const filter: any = { userId };
+
+    // Filter by status if provided
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    // Build sort object
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    // Get total count for pagination
+    const total = await Booking.countDocuments(filter);
+    const totalPages = Math.ceil(total / Number(limit));
+
+    // Get paginated results
+    const bookings = await Booking.find(filter)
       .populate(
         "movieId",
         "title poster genres duration rating releaseDate description"
       )
-      .sort({ createdAt: -1 });
+      .sort(sortOptions)
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
 
-    return res.status(200).json(bookings);
+    return res.status(200).json({
+      statusMsg: "success",
+      data: {
+        bookings,
+
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages,
+        hasNext: Number(page) < totalPages,
+        hasPrev: Number(page) > 1,
+
+        filters: {
+          applied: Object.keys(filter).length > 1, // userId is always applied
+          status,
+          sortBy,
+          sortOrder,
+        },
+      },
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
