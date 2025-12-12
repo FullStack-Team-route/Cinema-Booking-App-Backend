@@ -1,0 +1,482 @@
+{
+  "dashboard": {
+    "name": "نظام إدارة السينما",
+    "version": "1.0.0",
+    "description": "لوحة تحكم شاملة لإدارة السينما والحجوزات والمستخدمين",
+    "baseUrl": "http://localhost:5000/api",
+
+    "navigation": {
+      "main": [
+        {
+          "id": "overview",
+          "title": "نظرة عامة",
+          "icon": "dashboard",
+          "path": "/dashboard",
+          "description": "إحصائيات عامة ومقاييس الأداء"
+        },
+        {
+          "id": "movies",
+          "title": "إدارة الأفلام",
+          "icon": "movie",
+          "path": "/dashboard/movies",
+          "description": "إضافة وتعديل وحذف الأفلام"
+        },
+        {
+          "id": "bookings",
+          "title": "إدارة الحجوزات",
+          "icon": "ticket",
+          "path": "/dashboard/bookings",
+          "description": "مراقبة وإدارة جميع الحجوزات"
+        },
+        {
+          "id": "users",
+          "title": "إدارة المستخدمين",
+          "icon": "users",
+          "path": "/dashboard/users",
+          "description": "إدارة حسابات المستخدمين"
+        },
+        {
+          "id": "analytics",
+          "title": "التحليلات",
+          "icon": "analytics",
+          "path": "/dashboard/analytics",
+          "description": "تقارير وتحليلات مفصلة"
+        }
+      ],
+      "quickActions": [
+        {
+          "id": "add-movie",
+          "title": "إضافة فيلم جديد",
+          "icon": "plus",
+          "action": "navigate",
+          "path": "/dashboard/movies/add"
+        },
+        {
+          "id": "view-bookings",
+          "title": "عرض الحجوزات",
+          "icon": "list",
+          "action": "navigate",
+          "path": "/dashboard/bookings"
+        }
+      ]
+    },
+
+    "pages": {
+      "overview": {
+        "title": "نظرة عامة على النظام",
+        "endpoint": "/admin/dashboard-stats",
+        "method": "GET",
+        "auth": "admin",
+        "components": [
+          {
+            "type": "stats-cards",
+            "title": "المقاييس الأساسية",
+            "data": [
+              {
+                "key": "totalBookings",
+                "title": "إجمالي الحجوزات",
+                "icon": "ticket",
+                "color": "blue",
+                "format": "number"
+              },
+              {
+                "key": "totalRevenue",
+                "title": "إجمالي الإيرادات",
+                "icon": "dollar",
+                "color": "green",
+                "format": "currency"
+              },
+              {
+                "key": "totalUsers",
+                "title": "إجمالي المستخدمين",
+                "icon": "users",
+                "color": "purple",
+                "format": "number"
+              },
+              {
+                "key": "totalMovies",
+                "title": "إجمالي الأفلام",
+                "icon": "movie",
+                "color": "orange",
+                "format": "number"
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "title": "إحصائيات الحجوزات",
+            "chartType": "pie",
+            "dataKey": "bookingsByStatus",
+            "colors": ["#10B981", "#F59E0B", "#EF4444", "#8B5CF6"]
+          },
+          {
+            "type": "chart",
+            "title": "الإيرادات اليومية (آخر 30 يوم)",
+            "chartType": "line",
+            "dataKey": "revenueAnalytics.dailyRevenue",
+            "xAxis": "date",
+            "yAxis": "revenue"
+          },
+          {
+            "type": "table",
+            "title": "الحجوزات الأخيرة",
+            "dataKey": "recentActivity.recentBookings",
+            "columns": [
+              { "key": "bookingReference", "title": "رقم الحجز", "type": "text" },
+              { "key": "customer", "title": "العميل", "type": "text" },
+              { "key": "movie.title", "title": "الفيلم", "type": "text" },
+              { "key": "totalPrice", "title": "السعر", "type": "currency" },
+              { "key": "status", "title": "الحالة", "type": "badge" },
+              { "key": "createdAt", "title": "التاريخ", "type": "datetime" }
+            ]
+          }
+        ]
+      },
+
+      "movies": {
+        "title": "إدارة الأفلام",
+        "endpoints": {
+          "list": {
+            "url": "/movies/allMovies",
+            "method": "GET",
+            "params": ["page", "limit", "type"]
+          },
+          "add": {
+            "url": "/movies/addMovie",
+            "method": "POST",
+            "auth": "admin",
+            "contentType": "multipart/form-data"
+          },
+          "update": {
+            "url": "/movies/updateMovie/:id",
+            "method": "PUT",
+            "auth": "admin",
+            "contentType": "multipart/form-data"
+          },
+          "delete": {
+            "url": "/movies/deleteMovie/:id",
+            "method": "DELETE",
+            "auth": "admin"
+          },
+          "search": {
+            "url": "/movies/search",
+            "method": "GET",
+            "params": ["q", "genre", "year", "category", "rating", "page", "limit"]
+          },
+          "featured": {
+            "url": "/movies/featured",
+            "method": "GET",
+            "params": ["category", "page", "limit"]
+          }
+        },
+        "components": [
+          {
+            "type": "filters",
+            "title": "فلترة الأفلام",
+            "filters": [
+              {
+                "key": "category",
+                "title": "الفئة",
+                "type": "select",
+                "options": [
+                  { "value": "now-showing", "label": "معروض حالياً" },
+                  { "value": "coming-soon", "label": "قادم قريباً" },
+                  { "value": "featured", "label": "مميز" }
+                ]
+              },
+              {
+                "key": "genre",
+                "title": "النوع",
+                "type": "multiselect",
+                "endpoint": "/movies/search",
+                "dynamic": true
+              },
+              {
+                "key": "year",
+                "title": "السنة",
+                "type": "select",
+                "options": "dynamic"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "title": "قائمة الأفلام",
+            "dataKey": "movies",
+            "columns": [
+              { "key": "poster", "title": "الصورة", "type": "image" },
+              { "key": "title", "title": "العنوان", "type": "text" },
+              { "key": "category", "title": "الفئة", "type": "badge" },
+              { "key": "rating", "title": "التقييم", "type": "rating" },
+              { "key": "duration", "title": "المدة", "type": "text" },
+              { "key": "isActive", "title": "الحالة", "type": "boolean" }
+            ],
+            "actions": [
+              { "type": "edit", "title": "تعديل" },
+              { "type": "delete", "title": "حذف" },
+              { "type": "view", "title": "عرض التفاصيل" }
+            ]
+          },
+          {
+            "type": "pagination",
+            "dataKey": "page",
+            "totalKey": "totalPages"
+          }
+        ],
+        "forms": {
+          "add": {
+            "title": "إضافة فيلم جديد",
+            "fields": [
+              { "name": "title", "label": "عنوان الفيلم", "type": "text", "required": true },
+              { "name": "description", "label": "الوصف", "type": "textarea", "required": true },
+              { "name": "poster", "label": "صورة الفيلم", "type": "file", "required": true },
+              { "name": "duration", "label": "المدة (دقائق)", "type": "number", "required": true },
+              { "name": "rating", "label": "التقييم", "type": "number", "min": 0, "max": 10 },
+              { "name": "releaseDate", "label": "تاريخ الإصدار", "type": "date", "required": true },
+              { "name": "language", "label": "اللغة", "type": "text", "required": true },
+              { "name": "country", "label": "الدولة", "type": "text" },
+              { "name": "genres", "label": "الأنواع", "type": "array", "required": true },
+              { "name": "category", "label": "الفئة", "type": "select", "options": [
+                { "value": "now-showing", "label": "معروض حالياً" },
+                { "value": "coming-soon", "label": "قادم قريباً" },
+                { "value": "featured", "label": "مميز" }
+              ]},
+              { "name": "directors", "label": "المخرجون", "type": "array" },
+              { "name": "cast", "label": "الممثلون", "type": "array" },
+              { "name": "slots", "label": "مواعيد العرض", "type": "slots" }
+            ]
+          }
+        }
+      },
+
+      "bookings": {
+        "title": "إدارة الحجوزات",
+        "endpoints": {
+          "list": {
+            "url": "/bookings/allBookings",
+            "method": "GET",
+            "auth": "admin",
+            "params": ["page", "limit", "status", "movieId", "customer", "startDate", "endDate", "minPrice", "maxPrice"]
+          },
+          "userBookings": {
+            "url": "/bookings/userBookings/:userId",
+            "method": "GET",
+            "auth": "user",
+            "params": ["page", "limit", "status"]
+          },
+          "create": {
+            "url": "/bookings/addBooking",
+            "method": "POST",
+            "auth": "user"
+          },
+          "update": {
+            "url": "/bookings/updateBookings/:bookingId",
+            "method": "PUT",
+            "auth": "user"
+          },
+          "confirm": {
+            "url": "/bookings/confirmBookings/:bookingId",
+            "method": "PUT",
+            "auth": "admin"
+          },
+          "cancel": {
+            "url": "/bookings/cancelBookings/:bookingId",
+            "method": "PUT",
+            "auth": "user"
+          }
+        },
+        "components": [
+          {
+            "type": "filters",
+            "title": "فلترة الحجوزات",
+            "filters": [
+              {
+                "key": "status",
+                "title": "الحالة",
+                "type": "select",
+                "options": [
+                  { "value": "all", "label": "الكل" },
+                  { "value": "pending", "label": "في الانتظار" },
+                  { "value": "confirmed", "label": "مؤكدة" },
+                  { "value": "cancelled", "label": "ملغية" }
+                ]
+              },
+              {
+                "key": "startDate",
+                "title": "من تاريخ",
+                "type": "date"
+              },
+              {
+                "key": "endDate",
+                "title": "إلى تاريخ",
+                "type": "date"
+              },
+              {
+                "key": "customer",
+                "title": "اسم العميل",
+                "type": "text"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "title": "قائمة الحجوزات",
+            "dataKey": "data.bookings",
+            "columns": [
+              { "key": "bookingReference", "title": "رقم الحجز", "type": "text" },
+              { "key": "customer", "title": "العميل", "type": "text" },
+              { "key": "movieId.title", "title": "الفيلم", "type": "text" },
+              { "key": "showtime", "title": "موعد العرض", "type": "text" },
+              { "key": "totalPrice", "title": "السعر", "type": "currency" },
+              { "key": "status", "title": "الحالة", "type": "badge" },
+              { "key": "createdAt", "title": "تاريخ الحجز", "type": "datetime" }
+            ],
+            "actions": [
+              { "type": "view", "title": "عرض التفاصيل" },
+              { "type": "confirm", "title": "تأكيد", "condition": "status === 'pending'" },
+              { "type": "cancel", "title": "إلغاء", "condition": "status !== 'cancelled'" }
+            ]
+          },
+          {
+            "type": "pagination",
+            "dataKey": "data.page",
+            "totalKey": "data.totalPages",
+            "hasNextKey": "data.hasNext",
+            "hasPrevKey": "data.hasPrev"
+          }
+        ]
+      },
+
+      "users": {
+        "title": "إدارة المستخدمين",
+        "endpoints": {
+          "list": {
+            "url": "/auth/users",
+            "method": "GET",
+            "auth": "admin",
+            "params": ["page", "limit"]
+          },
+          "update": {
+            "url": "/auth/update",
+            "method": "PUT",
+            "auth": "user"
+          },
+          "delete": {
+            "url": "/auth/delete/:id",
+            "method": "DELETE",
+            "auth": "admin"
+          }
+        },
+        "components": [
+          {
+            "type": "table",
+            "title": "قائمة المستخدمين",
+            "columns": [
+              { "key": "fullName", "title": "الاسم الكامل", "type": "text" },
+              { "key": "email", "title": "البريد الإلكتروني", "type": "text" },
+              { "key": "role", "title": "الدور", "type": "badge" },
+              { "key": "isActive", "title": "الحالة", "type": "boolean" },
+              { "key": "createdAt", "title": "تاريخ التسجيل", "type": "datetime" }
+            ],
+            "actions": [
+              { "type": "edit", "title": "تعديل" },
+              { "type": "delete", "title": "حذف" },
+              { "type": "toggle", "title": "تفعيل/إلغاء تفعيل" }
+            ]
+          }
+        ]
+      },
+
+      "analytics": {
+        "title": "التحليلات والتقارير",
+        "endpoints": {
+          "stats": "/admin/dashboard-stats",
+          "export": "/admin/export/:type"
+        },
+        "sections": [
+          {
+            "id": "revenue",
+            "title": "تحليل الإيرادات",
+            "charts": [
+              {
+                "type": "line",
+                "title": "الإيرادات الشهرية",
+                "dataKey": "revenueAnalytics.monthlyRevenue",
+                "xAxis": "month",
+                "yAxis": "revenue"
+              },
+              {
+                "type": "bar",
+                "title": "الإيرادات الأسبوعية",
+                "dataKey": "revenueAnalytics.weeklyRevenue",
+                "xAxis": "week",
+                "yAxis": "revenue"
+              }
+            ]
+          },
+          {
+            "id": "movies",
+            "title": "تحليل الأفلام",
+            "components": [
+              {
+                "type": "table",
+                "title": "الأفلام الأكثر حجزاً",
+                "dataKey": "topMoviesAnalytics.mostBookedMovies",
+                "columns": [
+                  { "key": "movieTitle", "title": "الفيلم" },
+                  { "key": "totalBookings", "title": "عدد الحجوزات" },
+                  { "key": "totalRevenue", "title": "الإيرادات" }
+                ]
+              },
+              {
+                "type": "chart",
+                "title": "أداء الأنواع",
+                "chartType": "bar",
+                "dataKey": "movieGenreAnalytics.genrePerformance",
+                "xAxis": "genre",
+                "yAxis": "totalRevenue"
+              }
+            ]
+          },
+          {
+            "id": "users",
+            "title": "تحليل المستخدمين",
+            "charts": [
+              {
+                "type": "line",
+                "title": "تسجيل المستخدمين الشهري",
+                "dataKey": "userAnalytics.registrationTrends",
+                "xAxis": "month",
+                "yAxis": "count"
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    "userRoles": {
+      "admin": {
+        "permissions": ["read", "write", "delete", "manage_users", "view_analytics"],
+        "accessiblePages": ["overview", "movies", "bookings", "users", "analytics"]
+      },
+      "user": {
+        "permissions": ["read", "write"],
+        "accessiblePages": ["profile", "my-bookings", "movies"]
+      }
+    },
+
+    "apiReference": {
+      "baseUrl": "http://localhost:5000/api",
+      "authentication": {
+        "type": "Bearer Token",
+        "header": "Authorization: Bearer {token}"
+      },
+      "rateLimits": {
+        "general": "300 requests per 15 minutes",
+        "login": "10 requests per 15 minutes",
+        "forgotPassword": "10 requests per hour"
+      }
+    }
+  }
+}

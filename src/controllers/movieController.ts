@@ -530,14 +530,24 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
 // =============================
 export const getFeaturedMovies = async (req: Request, res: Response) => {
   try {
-    const { category = "featured", limit = 10, page = 1 } = req.query as any;
+    const { category, featured, limit = 10, page = 1 } = req.query as any;
 
     const filter: any = {
-      category,
       isActive: true,
     };
 
-    if (category === "featured") {
+    // Filter by category if provided
+    if (category) {
+      filter.category = category;
+    }
+
+    // Filter by featured status if provided (true/false)
+    if (featured !== undefined) {
+      filter.featured = featured === "true";
+    }
+
+    // If no category or featured filter specified, get all featured movies
+    if (!category && featured === undefined) {
       filter.featured = true;
     }
 
@@ -551,7 +561,8 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
 
     res.status(200).json({
       statusMsg: "success",
-      category,
+      category: category || "all",
+      featured: featured !== undefined ? featured === "true" : "all",
       page: +page,
       limit: +limit,
       total,
