@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import Booking from "../models/Booking.js";
 import { Movie } from "../models/Movie.js";
+import { User } from "../models/User.js";
 
 // ===============================
 //  Create Booking
@@ -14,7 +15,11 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // ---------- Get Movie ----------
+    // ---------- Validate User ID ----------
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // ---------- Validate Movie ID ----------
     const movie = await Movie.findById(movieId);
     if (!movie) return res.status(404).json({ message: "Movie not found" });
 
