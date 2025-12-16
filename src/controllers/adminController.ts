@@ -370,6 +370,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       recentBookings,
       recentUserRegistrations,
       recentMovieAdditions,
+      moviesByStatus,
     ] = await Promise.all([
       // Basic counts
       Booking.countDocuments(),
@@ -457,6 +458,35 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         .sort({ createdAt: -1 })
         .limit(10)
         .lean(),
+
+      // Movies by status/category
+      Movie.aggregate([
+        {
+          $group: {
+            _id: "$category",
+            count: { $sum: 1 },
+            movies: {
+              $push: {
+                id: "$_id",
+                title: "$title",
+                poster: "$poster",
+                rating: "$rating",
+                releaseDate: "$releaseDate",
+                isActive: "$isActive",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            status: "$_id",
+            count: 1,
+            movies: { $slice: ["$movies", 5] }, // Show up to 5 movies per category
+            _id: 0,
+          },
+        },
+        { $sort: { count: -1 } },
+      ]),
     ]);
 
     // Process results
@@ -516,6 +546,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         recentBookings: recentBookings,
         recentUserRegistrations: recentUserRegistrations,
         recentMovieAdditions: recentMovieAdditions,
+      },
+      movieStatusAnalytics: {
+        moviesByStatus: moviesByStatus,
       },
     };
 
