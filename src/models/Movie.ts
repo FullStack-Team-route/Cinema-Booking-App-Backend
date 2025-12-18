@@ -131,7 +131,7 @@ export const MovieSchema = new mongoose.Schema(
 
     // Cinema-specific fields
     slots: [SlotSchema], // showtimes for this movie
-    auditoriums: [{ type: String }], // which auditoriums show this movie
+    auditoriums: [{ type: mongoose.Schema.Types.ObjectId, ref: "Auditorium" }], // which hall show this movie
 
     // Additional Info
     imdbId: String,

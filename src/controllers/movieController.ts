@@ -63,7 +63,10 @@ export const addMovie = async (req: Request, res: Response) => {
     }
 
     const movie = await Movie.create(data);
-    res.status(201).json({ statusMsg: "success", movie });
+    const populatedMovie = await Movie.findById((movie as any)._id).populate(
+      "auditoriums"
+    );
+    res.status(201).json({ statusMsg: "success", movie: populatedMovie });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
@@ -78,6 +81,10 @@ export const getAllMovies = async (req: Request, res: Response) => {
     const filter: any = {};
     if (type) filter.type = type;
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .skip((+page - 1) * +limit)
       .limit(+limit)
       .sort({ createdAt: -1 });
@@ -98,7 +105,7 @@ export const getAllMovies = async (req: Request, res: Response) => {
 // =============================
 export const getSpecificMovie = async (req: Request, res: Response) => {
   try {
-    const movie = await Movie.findById(req.params.id);
+    const movie = await Movie.findById(req.params.id).populate("auditoriums");
     if (!movie) {
       return res
         .status(404)
@@ -135,7 +142,7 @@ export const updateMovie = async (req: Request, res: Response) => {
 
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
       new: true,
-    });
+    }).populate("auditoriums");
     res.status(200).json({ statusMsg: "success", updatedMovie });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -304,6 +311,10 @@ export const searchMovies = async (req: Request, res: Response) => {
     sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -367,6 +378,10 @@ export const getMoviesByGenre = async (req: Request, res: Response) => {
       genres: { $in: [genre] },
       isActive: true,
     })
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -424,6 +439,10 @@ export const getMoviesByYear = async (req: Request, res: Response) => {
       year: yearNum,
       isActive: true,
     })
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -462,6 +481,10 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
     const filter = { rating: { $gte: minRatingNum }, isActive: true };
 
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -507,6 +530,10 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
     filter.isActive = true;
 
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -556,6 +583,10 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
     }
 
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -650,6 +681,10 @@ export const getLatestTrailers = async (req: Request, res: Response) => {
     };
 
     const movies = await Movie.find(filter)
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .select(
         "title description poster genres year duration releaseDate trailer directors producers cast singers"
       )
@@ -698,6 +733,10 @@ export const getMoviesByDate = async (req: Request, res: Response) => {
         $lte: endOfDay,
       },
     })
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
       .select(
         "title poster description rating duration category slots auditoriums"
       )
@@ -771,7 +810,7 @@ export const getSeatLayout = async (req: Request, res: Response) => {
       });
     }
 
-    const movie = await Movie.findById(movieId);
+    const movie = await Movie.findById(movieId).populate("auditoriums");
     if (!movie) {
       return res
         .status(404)
@@ -829,6 +868,410 @@ export const getSeatLayout = async (req: Request, res: Response) => {
         date: slot.date,
         auditorium: movie.auditoriums?.[0] || "Auditorium 1",
         seatTypes: seatLayout,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// إدارة الـ Slots (Showtimes)
+// =============================
+
+// إضافة slot جديد لفيلم معين
+export const addSlotToMovie = async (req: Request, res: Response) => {
+  try {
+    const { movieId } = req.params;
+    const { date, time, ampm, seatTypes } = req.body;
+
+    // التحقق من صحة البيانات
+    if (!date || !time || !seatTypes || !Array.isArray(seatTypes)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Date, time, and seatTypes are required",
+      });
+    }
+
+    // البحث عن الفيلم
+    const movie = await Movie.findById(movieId).populate("auditoriums");
+    if (!movie) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Movie not found",
+      });
+    }
+
+    // حساب إجمالي المقاعد والمقاعد المتاحة
+    let totalSeats = 0;
+    let availableSeats = 0;
+
+    seatTypes.forEach((seatType: any) => {
+      if (seatType.totalSeats && seatType.availableSeats) {
+        totalSeats += seatType.totalSeats;
+        availableSeats += seatType.availableSeats;
+      }
+    });
+
+    // إنشاء الـ slot الجديد
+    const newSlot = {
+      date: new Date(date),
+      time,
+      ampm: ampm || "PM",
+      seatTypes,
+      totalSeats,
+      availableSeats,
+      bookedSeats: [],
+    };
+
+    // إضافة الـ slot للفيلم
+    movie.slots.push(newSlot);
+
+    // حفظ الفيلم
+    await movie.save();
+
+    res.status(201).json({
+      statusMsg: "success",
+      message: "Slot added successfully",
+      slot: movie.slots[movie.slots.length - 1],
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// تعديل slot موجود
+export const updateSlot = async (req: Request, res: Response) => {
+  try {
+    const { movieId, slotId } = req.params;
+    const { date, time, ampm, seatTypes } = req.body;
+
+    // البحث عن الفيلم
+    const movie = await Movie.findById(movieId).populate("auditoriums");
+    if (!movie) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Movie not found",
+      });
+    }
+
+    // التحقق من slotId
+    if (!slotId) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Slot ID is required",
+      });
+    }
+
+    // البحث عن الـ slot
+    const slot = movie.slots.id(slotId);
+    if (!slot) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Slot not found",
+      });
+    }
+
+    // تحديث البيانات
+    if (date) slot.date = new Date(date);
+    if (time) slot.time = time;
+    if (ampm) slot.ampm = ampm;
+
+    // تحديث seatTypes وحساب الإجماليات
+    if (seatTypes && Array.isArray(seatTypes)) {
+      // مسح seatTypes الحالية وإضافة الجديدة
+      slot.seatTypes.splice(0, slot.seatTypes.length);
+      seatTypes.forEach((seatType: any) => {
+        slot.seatTypes.push(seatType);
+      });
+
+      let totalSeats = 0;
+      let availableSeats = 0;
+
+      seatTypes.forEach((seatType: any) => {
+        if (seatType.totalSeats && seatType.availableSeats) {
+          totalSeats += seatType.totalSeats;
+          availableSeats += seatType.availableSeats;
+        }
+      });
+
+      slot.totalSeats = totalSeats;
+      slot.availableSeats = availableSeats;
+    }
+
+    // حفظ الفيلم
+    await movie.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "Slot updated successfully",
+      slot,
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// حذف slot
+export const deleteSlot = async (req: Request, res: Response) => {
+  try {
+    const { movieId, slotId } = req.params;
+
+    // البحث عن الفيلم
+    const movie = await Movie.findById(movieId).populate("auditoriums");
+    if (!movie) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Movie not found",
+      });
+    }
+
+    // التحقق من slotId
+    if (!slotId) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Slot ID is required",
+      });
+    }
+
+    // البحث عن الـ slot وحذفه
+    const slotIndex = movie.slots.findIndex(
+      (slot: any) => slot._id.toString() === slotId
+    );
+    if (slotIndex === -1) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Slot not found",
+      });
+    }
+
+    // التحقق من عدم وجود حجوزات على هذا الـ slot
+    const slot = movie.slots[slotIndex];
+    if (slot && slot.bookedSeats && slot.bookedSeats.length > 0) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot delete slot with existing bookings",
+      });
+    }
+
+    // حذف الـ slot
+    movie.slots.splice(slotIndex, 1);
+
+    // حفظ الفيلم
+    await movie.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "Slot deleted successfully",
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// جلب جميع slots لفيلم معين
+export const getMovieSlots = async (req: Request, res: Response) => {
+  try {
+    const { movieId } = req.params;
+    const { date, page = 1, limit = 10 } = req.query;
+
+    // البحث عن الفيلم
+    const movie = await Movie.findById(movieId).populate("auditoriums");
+    if (!movie) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Movie not found",
+      });
+    }
+
+    let slots = Array.from(movie.slots);
+
+    // فلترة حسب التاريخ إذا تم تحديده
+    if (date) {
+      const targetDate = new Date(date as string);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      slots = slots.filter((slot: any) => {
+        const slotDate = new Date(slot.date);
+        return slotDate >= startOfDay && slotDate <= endOfDay;
+      });
+    }
+
+    // ترتيب حسب التاريخ والوقت
+    slots.sort((a: any, b: any) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+
+      // إذا كان نفس التاريخ، ترتيب حسب الوقت
+      const timeA = a.time.split(":").map(Number);
+      const timeB = b.time.split(":").map(Number);
+
+      const hourA =
+        a.ampm === "PM" && timeA[0] !== 12
+          ? timeA[0] + 12
+          : a.ampm === "AM" && timeA[0] === 12
+          ? 0
+          : timeA[0];
+      const hourB =
+        b.ampm === "PM" && timeB[0] !== 12
+          ? timeB[0] + 12
+          : b.ampm === "AM" && timeB[0] === 12
+          ? 0
+          : timeB[0];
+
+      if (hourA !== hourB) return hourA - hourB;
+      return timeA[1] - timeB[1];
+    });
+
+    // تقسيم الصفحات
+    const startIndex = (+page - 1) * +limit;
+    const endIndex = startIndex + +limit;
+    const paginatedSlots = slots.slice(startIndex, endIndex);
+
+    const total = slots.length;
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      movie: {
+        id: movie._id,
+        title: movie.title,
+        poster: movie.poster,
+      },
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      slots: paginatedSlots,
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// جلب جميع slots لجميع الأفلام
+export const getAllSlots = async (req: Request, res: Response) => {
+  try {
+    const { date, page = 1, limit = 10, movieId } = req.query;
+
+    // بناء الـ filter
+    const filter: any = {};
+
+    // فلترة حسب تاريخ معين
+    if (date) {
+      const targetDate = new Date(date as string);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      filter["slots.date"] = {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      };
+    }
+
+    // فلترة حسب فيلم معين
+    if (movieId) {
+      filter._id = movieId;
+    }
+
+    // جلب الأفلام مع الـ slots
+    const movies = await Movie.find(filter, {
+      title: 1,
+      poster: 1,
+      slots: 1,
+      category: 1,
+      auditoriums: 1,
+    })
+      .populate(
+        "auditoriums",
+        "name capacity type facilities location isActive"
+      )
+      .lean();
+
+    // تجميع كل الـ slots مع معلومات الفيلم
+    let allSlots: any[] = [];
+
+    movies.forEach((movie: any) => {
+      if (movie.slots && movie.slots.length > 0) {
+        movie.slots.forEach((slot: any) => {
+          allSlots.push({
+            _id: slot._id,
+            movie: {
+              _id: movie._id,
+              title: movie.title,
+              poster: movie.poster,
+              category: movie.category,
+            },
+            date: slot.date,
+            time: slot.time,
+            ampm: slot.ampm,
+            totalSeats: slot.totalSeats,
+            availableSeats: slot.availableSeats,
+            seatTypes: slot.seatTypes,
+            bookedSeatsCount: slot.bookedSeats ? slot.bookedSeats.length : 0,
+          });
+        });
+      }
+    });
+
+    // ترتيب حسب التاريخ والوقت
+    allSlots.sort((a: any, b: any) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+
+      const timeA = a.time.split(":").map(Number);
+      const timeB = b.time.split(":").map(Number);
+
+      const hourA =
+        a.ampm === "PM" && timeA[0] !== 12
+          ? timeA[0] + 12
+          : a.ampm === "AM" && timeA[0] === 12
+          ? 0
+          : timeA[0];
+      const hourB =
+        b.ampm === "PM" && timeB[0] !== 12
+          ? timeB[0] + 12
+          : b.ampm === "AM" && timeB[0] === 12
+          ? 0
+          : timeB[0];
+
+      if (hourA !== hourB) return hourA - hourB;
+      return timeA[1] - timeB[1];
+    });
+
+    // تقسيم الصفحات
+    const startIndex = (+page - 1) * +limit;
+    const endIndex = startIndex + +limit;
+    const paginatedSlots = allSlots.slice(startIndex, endIndex);
+
+    const total = allSlots.length;
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      slots: paginatedSlots,
+      filters: {
+        date: date || null,
+        movieId: movieId || null,
       },
     });
   } catch (err: any) {

@@ -16,6 +16,11 @@ import {
   getSpecificMovie,
   getMoviesByDate,
   getSeatLayout,
+  addSlotToMovie,
+  updateSlot,
+  deleteSlot,
+  getMovieSlots,
+  getAllSlots,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { storage } from "../config/cloudinary.js";
@@ -49,8 +54,6 @@ router.put(
   upload.single("poster"),
   updateMovie
 );
-
-
 
 // =============================
 // Delete movie (Admin only)
@@ -94,5 +97,27 @@ router.get("/seat-layout/:movieId/:slotId", getSeatLayout);
 
 // Legacy route for backward compatibility
 router.get("/allMovies", getAllMovies);
+
+// =============================
+// Slot Management Routes (Admin only)
+// =============================
+
+// إضافة slot جديد لفيلم
+router.post("/movies/:movieId/slots", protect, adminOnly, addSlotToMovie);
+
+// تعديل slot موجود
+router.put("/movies/:movieId/slots/:slotId", protect, adminOnly, updateSlot);
+
+// حذف slot
+router.delete("/movies/:movieId/slots/:slotId", protect, adminOnly, deleteSlot);
+
+// جلب جميع slots لفيلم معين
+router.get("/movies/:movieId/slots", protect, adminOnly, getMovieSlots);
+
+
+// جلب جميع slots لجميع الأفلام (Admin only)
+router.get("/slots", protect, adminOnly, getAllSlots);
+
+
 
 export default router;

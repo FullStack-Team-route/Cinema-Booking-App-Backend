@@ -9,8 +9,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
-
-
+import auditoriumRoutes from "./routes/auditoriumRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,18 +23,18 @@ const API_RATE_WINDOW_MS = toNumber(
   process.env.RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000
 ); // default 15m
-const API_RATE_MAX = toNumber(process.env.RATE_LIMIT_MAX, 300); 
+const API_RATE_MAX = toNumber(process.env.RATE_LIMIT_MAX, 300);
 
 const LOGIN_RATE_WINDOW_MS = toNumber(
   process.env.LOGIN_RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000
 );
-const LOGIN_RATE_MAX = toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 10);  
+const LOGIN_RATE_MAX = toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 10);
 const FORGOT_RATE_WINDOW_MS = toNumber(
   process.env.FORGOT_RATE_LIMIT_WINDOW_MS,
   60 * 60 * 1000
 ); // default 1h
-const FORGOT_RATE_MAX = toNumber(process.env.FORGOT_RATE_LIMIT_MAX, 10); 
+const FORGOT_RATE_MAX = toNumber(process.env.FORGOT_RATE_LIMIT_MAX, 10);
 
 const apiLimiter = rateLimit({
   windowMs: API_RATE_WINDOW_MS,
@@ -93,6 +92,7 @@ app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/auditoriums", auditoriumRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
