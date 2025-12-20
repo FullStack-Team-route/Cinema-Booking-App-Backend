@@ -5,11 +5,10 @@ import { Movie } from "../models/Movie.js";
 // إضافة قاعة جديدة
 export const addAuditorium = async (req: Request, res: Response) => {
   try {
-    const { name, capacity, type, facilities, location } = req.body;
+    const { name, type, facilities, location } = req.body;
 
     const auditorium = await Auditorium.create({
       name,
-      capacity,
       type,
       facilities,
       location,
@@ -84,7 +83,7 @@ export const getAuditorium = async (req: Request, res: Response) => {
 export const updateAuditorium = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, type, facilities, location, isActive } = req.body;
+    const { name, type, facilities, location, isActive } = req.body;
 
     // البحث عن القاعة أولاً
     const auditorium = await Auditorium.findById(id);
@@ -97,7 +96,6 @@ export const updateAuditorium = async (req: Request, res: Response) => {
 
     // تحديث الحقول المطلوبة فقط (partial update)
     if (name !== undefined) auditorium.name = name;
-    if (capacity !== undefined) auditorium.capacity = capacity;
     if (type !== undefined) auditorium.type = type;
     if (facilities !== undefined) auditorium.facilities = facilities;
     if (location !== undefined) auditorium.location = location;

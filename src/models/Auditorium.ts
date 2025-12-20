@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 interface IAuditorium {
   name: string;
-  capacity: number;
   type: "standard" | "premium" | "imax" | "vip";
   facilities: string[]; // ["3D", "Dolby Atmos", "Recliners", etc.]
   location: string; // "Ground Floor", "First Floor", etc.
@@ -15,7 +14,6 @@ interface IAuditorium {
 const AuditoriumSchema = new mongoose.Schema<IAuditorium>(
   {
     name: { type: String, required: true, unique: true },
-    capacity: { type: Number, required: true },
     type: {
       type: String,
       enum: ["standard", "premium", "imax", "vip"],
