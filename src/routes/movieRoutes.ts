@@ -24,10 +24,21 @@ const router = express.Router();
 
 const upload = multer({ storage });
 
+// Configure multer for movie uploads with multiple files
+const movieUpload = upload.fields([
+  { name: "poster", maxCount: 1 },
+  { name: "gallery", maxCount: 10 }, // Up to 10 gallery images
+  { name: "directorsImages", maxCount: 10 }, // Images for directors
+  { name: "castImages", maxCount: 20 }, // Images for cast members
+  { name: "writersImages", maxCount: 10 }, // Images for writers
+  { name: "producersImages", maxCount: 10 }, // Images for producers
+  { name: "singersImages", maxCount: 10 }, // Images for singers
+]);
+
 // =============================
 // Add movie (Admin only)
 // =============================
-router.post("/addMovie", protect, adminOnly, upload.single("poster"), addMovie);
+router.post("/addMovie", protect, adminOnly, movieUpload, addMovie);
 
 // =============================
 // Get paginated movies (Public)
@@ -42,15 +53,7 @@ router.get("/getSpecificMovie/:id", getSpecificMovie);
 // =============================
 // Update movie (Admin only)
 // =============================
-router.put(
-  "/updateMovie/:id",
-  protect,
-  adminOnly,
-  upload.single("poster"),
-  updateMovie
-);
-
-
+router.put("/updateMovie/:id", protect, adminOnly, movieUpload, updateMovie);
 
 // =============================
 // Delete movie (Admin only)
