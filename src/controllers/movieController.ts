@@ -29,11 +29,7 @@ export const addMovie = async (req: Request, res: Response) => {
           data[field] = JSON.parse(data[field]);
         } catch (error) {
           console.error(`Error parsing ${field}:`, error);
-          if (field === "slots") {
-            data[field] = undefined;
-          } else {
-            data[field] = [];
-          }
+          data[field] = [];
         }
       }
     });
