@@ -41,9 +41,11 @@ export const addMovie = async (req: Request, res: Response) => {
 
     // Handle file uploads - الآن files هو array بدلاً من object
     const files = (req as any).files as any[];
+    let fileMap: { [key: string]: any[] } = {};
+
     if (files && Array.isArray(files)) {
       // تجميع الملفات حسب الاسم
-      const fileMap: { [key: string]: any[] } = {};
+      fileMap = {};
 
       files.forEach((file) => {
         const fieldName = file.fieldname;
@@ -53,24 +55,19 @@ export const addMovie = async (req: Request, res: Response) => {
         fileMap[fieldName].push(file);
       });
 
+      console.log("📁 File Map created:", Object.keys(fileMap));
+
       // Handle poster
       if (fileMap.poster && fileMap.poster[0]) {
         data.poster = fileMap.poster[0].path; // Cloudinary URL
+        console.log("✅ Poster uploaded:", data.poster);
       }
 
       // Handle gallery images
       if (fileMap.gallery && fileMap.gallery.length > 0) {
         data.gallery = fileMap.gallery.map((file: any) => file.path);
+        console.log("✅ Gallery uploaded:", data.gallery.length, "images");
       }
-
-      // Handle person images (directors, cast, writers, producers, singers)
-      const personImageFields = [
-        "directors",
-        "cast",
-        "writers",
-        "producers",
-        "singers",
-      ];
     }
 
     // Parse complex fields that come as JSON strings
