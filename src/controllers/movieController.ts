@@ -7,19 +7,60 @@ import { deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
 // =============================
 export const addMovie = async (req: Request, res: Response) => {
   try {
-    const data: any = { ...req.body };
+    console.log("=== DEBUG: Raw Request Body ===");
+    console.log("Body:", req.body);
+    console.log("Files:", req.files);
 
-    // Handle file uploads
-    const files = (req as any).files;
-    if (files) {
+    let data: any = { ...req.body };
+
+    // إذا كانت البيانات تأتي في حقل movieData كـ JSON string
+    if (data.movieData && typeof data.movieData === "string") {
+      try {
+        console.log("Parsing movieData:", data.movieData);
+        const parsedData = JSON.parse(data.movieData);
+        console.log("Parsed movieData:", parsedData);
+        data = { ...data, ...parsedData };
+        delete data.movieData; // إزالة الحقل المؤقت
+      } catch (parseError) {
+        console.error("Error parsing movieData:", parseError);
+        return res
+          .status(400)
+          .json({ statusMsg: "fail", error: "Invalid movieData format" });
+      }
+    }
+
+    console.log("=== DEBUG: Final Data Object ===");
+    console.log("Final data:", {
+      title: data.title,
+      description: data.description,
+      duration: data.duration,
+      language: data.language,
+      year: data.year,
+      trailer: data.trailer,
+    });
+
+    // Handle file uploads - الآن files هو array بدلاً من object
+    const files = (req as any).files as any[];
+    if (files && Array.isArray(files)) {
+      // تجميع الملفات حسب الاسم
+      const fileMap: { [key: string]: any[] } = {};
+
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMap[fieldName]) {
+          fileMap[fieldName] = [];
+        }
+        fileMap[fieldName].push(file);
+      });
+
       // Handle poster
-      if (files.poster && files.poster[0]) {
-        data.poster = files.poster[0].path; // Cloudinary URL
+      if (fileMap.poster && fileMap.poster[0]) {
+        data.poster = fileMap.poster[0].path; // Cloudinary URL
       }
 
       // Handle gallery images
-      if (files.gallery && Array.isArray(files.gallery)) {
-        data.gallery = files.gallery.map((file: any) => file.path);
+      if (fileMap.gallery && fileMap.gallery.length > 0) {
+        data.gallery = fileMap.gallery.map((file: any) => file.path);
       }
 
       // Handle person images (directors, cast, writers, producers, singers)
@@ -30,12 +71,6 @@ export const addMovie = async (req: Request, res: Response) => {
         "producers",
         "singers",
       ];
-
-      personImageFields.forEach((field) => {
-        if (files[`${field}Images`] && Array.isArray(files[`${field}Images`])) {
-          // We'll handle this after parsing the main data
-        }
-      });
     }
 
     // Parse complex fields that come as JSON strings
@@ -45,10 +80,8 @@ export const addMovie = async (req: Request, res: Response) => {
       "cast",
       "producers",
       "singers",
-      "slots",
       "trailer",
       "genres",
-      "auditoriums",
     ];
 
     jsonFields.forEach((field) => {
@@ -88,21 +121,59 @@ export const addMovie = async (req: Request, res: Response) => {
       "singers",
     ];
 
+    // تجميع الملفات حسب الاسم (نكرر العملية هنا)
+    const fileMapLocal: { [key: string]: any[] } = {};
+    if (files && Array.isArray(files)) {
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMapLocal[fieldName]) {
+          fileMapLocal[fieldName] = [];
+        }
+        fileMapLocal[fieldName].push(file);
+      });
+    }
+
     personImageFields.forEach((field) => {
       if (
         data[field] &&
         Array.isArray(data[field]) &&
-        files &&
-        files[`${field}Images`]
+        fileMapLocal &&
+        fileMapLocal[`${field}Images`]
       ) {
-        const images = files[`${field}Images`];
-        data[field].forEach((person: any, index: number) => {
-          if (images[index]) {
-            person.image = images[index].path;
-          }
-        });
+        const images = fileMapLocal[`${field}Images`];
+        console.log(
+          `🎭 Processing ${field} images:`,
+          images?.length || 0,
+          "images found"
+        );
+
+        if (images) {
+          data[field].forEach((person: any, index: number) => {
+            if (images[index]) {
+              person.image = images[index].path;
+              console.log(
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+              );
+            } else {
+              console.log(
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+              );
+            }
+          });
+        }
+      } else {
+        console.log(`ℹ️ No images uploaded for ${field}`);
       }
     });
+
+    // Fix trailer - convert empty array to null
+    if (
+      data.trailer &&
+      Array.isArray(data.trailer) &&
+      data.trailer.length === 0
+    ) {
+      data.trailer = null;
+    }
 
     // Convert string numbers to actual numbers
     const numberFields = [
@@ -135,46 +206,12 @@ export const addMovie = async (req: Request, res: Response) => {
       data.releaseDate = new Date(data.releaseDate);
     }
 
-    // Calculate total seats and available seats for each slot
-    if (data.slots && Array.isArray(data.slots)) {
-      data.slots.forEach((slot: any) => {
-        if (slot.seatTypes && Array.isArray(slot.seatTypes)) {
-          // Convert seat type numbers
-          slot.seatTypes.forEach((seatType: any) => {
-            if (typeof seatType.price === "string")
-              seatType.price = parseFloat(seatType.price);
-            if (typeof seatType.totalSeats === "string")
-              seatType.totalSeats = parseInt(seatType.totalSeats, 10);
-            if (typeof seatType.availableSeats === "string")
-              seatType.availableSeats = parseInt(seatType.availableSeats, 10);
-          });
-
-          const totalSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) => sum + (seatType.totalSeats || 0),
-            0
-          );
-          const availableSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) =>
-              sum + (seatType.availableSeats || 0),
-            0
-          );
-
-          slot.totalSeats = totalSeats;
-          slot.availableSeats = availableSeats;
-
-          // Convert slot date
-          if (slot.date && typeof slot.date === "string") {
-            slot.date = new Date(slot.date);
-          }
-        }
-      });
-    }
+    // Set default empty arrays for slots and auditoriums
+    data.slots = [];
+    data.auditoriums = [];
 
     const movie = await Movie.create(data);
-    const populatedMovie = await Movie.findById((movie as any)._id).populate(
-      "auditoriums"
-    );
-    res.status(201).json({ statusMsg: "success", movie: populatedMovie });
+    res.status(201).json({ statusMsg: "success", movie });
   } catch (err: any) {
     console.error("Error creating movie:", err);
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -281,10 +318,8 @@ export const updateMovie = async (req: Request, res: Response) => {
       "cast",
       "producers",
       "singers",
-      "slots",
       "trailer",
       "genres",
-      "auditoriums",
     ];
 
     jsonFields.forEach((field) => {
@@ -317,21 +352,59 @@ export const updateMovie = async (req: Request, res: Response) => {
       "singers",
     ];
 
+    // تجميع الملفات حسب الاسم (نكرر العملية هنا)
+    const fileMapLocal: { [key: string]: any[] } = {};
+    if (files && Array.isArray(files)) {
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMapLocal[fieldName]) {
+          fileMapLocal[fieldName] = [];
+        }
+        fileMapLocal[fieldName].push(file);
+      });
+    }
+
     personImageFields.forEach((field) => {
       if (
         data[field] &&
         Array.isArray(data[field]) &&
-        files &&
-        files[`${field}Images`]
+        fileMapLocal &&
+        fileMapLocal[`${field}Images`]
       ) {
-        const images = files[`${field}Images`];
-        data[field].forEach((person: any, index: number) => {
-          if (images[index]) {
-            person.image = images[index].path;
-          }
-        });
+        const images = fileMapLocal[`${field}Images`];
+        console.log(
+          `🎭 Processing ${field} images:`,
+          images?.length || 0,
+          "images found"
+        );
+
+        if (images) {
+          data[field].forEach((person: any, index: number) => {
+            if (images[index]) {
+              person.image = images[index].path;
+              console.log(
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+              );
+            } else {
+              console.log(
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+              );
+            }
+          });
+        }
+      } else {
+        console.log(`ℹ️ No images uploaded for ${field}`);
       }
     });
+
+    // Fix trailer - convert empty array to null
+    if (
+      data.trailer &&
+      Array.isArray(data.trailer) &&
+      data.trailer.length === 0
+    ) {
+      data.trailer = null;
+    }
 
     // Convert string numbers to actual numbers
     const numberFields = [
@@ -364,44 +437,9 @@ export const updateMovie = async (req: Request, res: Response) => {
       data.releaseDate = new Date(data.releaseDate);
     }
 
-    // Handle slots update
-    if (data.slots && Array.isArray(data.slots)) {
-      data.slots.forEach((slot: any) => {
-        if (slot.seatTypes && Array.isArray(slot.seatTypes)) {
-          // Convert seat type numbers
-          slot.seatTypes.forEach((seatType: any) => {
-            if (typeof seatType.price === "string")
-              seatType.price = parseFloat(seatType.price);
-            if (typeof seatType.totalSeats === "string")
-              seatType.totalSeats = parseInt(seatType.totalSeats, 10);
-            if (typeof seatType.availableSeats === "string")
-              seatType.availableSeats = parseInt(seatType.availableSeats, 10);
-          });
-
-          const totalSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) => sum + (seatType.totalSeats || 0),
-            0
-          );
-          const availableSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) =>
-              sum + (seatType.availableSeats || 0),
-            0
-          );
-
-          slot.totalSeats = totalSeats;
-          slot.availableSeats = availableSeats;
-
-          // Convert slot date
-          if (slot.date && typeof slot.date === "string") {
-            slot.date = new Date(slot.date);
-          }
-        }
-      });
-    }
-
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
       new: true,
-    }).populate("auditoriums");
+    });
     res.status(200).json({ statusMsg: "success", updatedMovie });
   } catch (err: any) {
     console.error("Error updating movie:", err);

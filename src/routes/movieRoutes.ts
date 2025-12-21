@@ -25,15 +25,8 @@ const router = express.Router();
 const upload = multer({ storage });
 
 // Configure multer for movie uploads with multiple files
-const movieUpload = upload.fields([
-  { name: "poster", maxCount: 1 },
-  { name: "gallery", maxCount: 10 }, // Up to 10 gallery images
-  { name: "directorsImages", maxCount: 10 }, // Images for directors
-  { name: "castImages", maxCount: 20 }, // Images for cast members
-  { name: "writersImages", maxCount: 10 }, // Images for writers
-  { name: "producersImages", maxCount: 10 }, // Images for producers
-  { name: "singersImages", maxCount: 10 }, // Images for singers
-]);
+// نستخدم any() بدلاً من fields() لأن FormData يرسل الملفات بأسماء مختلفة
+const movieUpload = upload.any();
 
 // =============================
 // Add movie (Admin only)
