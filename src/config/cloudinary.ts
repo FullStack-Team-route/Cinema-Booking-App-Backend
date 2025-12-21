@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import  { CloudinaryStorage } from "multer-storage-cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 // Configuration
 if (
@@ -20,14 +20,25 @@ cloudinary.config({
 export const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req: any, file: Express.Multer.File) => {
+    // تحديد المجلد حسب نوع الملف
+    let folder = "cinema-booking/movies";
+
+    // إذا كان الملف للأشخاص (directors, cast, writers, producers, singers)
+    if (
+      file.fieldname.includes("Images") ||
+      file.fieldname.includes("images")
+    ) {
+      folder = "cinema-booking/people";
+    }
+
     return {
-      folder: "cinema-booking/movies", // Folder in cloudinary
+      folder: folder, // Folder in cloudinary
       format: file.mimetype.split("/")[1], // Extract format from mimetype
       public_id: `${file.fieldname}-${Date.now()}-${Math.round(
         Math.random() * 1e9
       )}`,
       transformation: [
-        { width: 1000, height: 1000, crop: "limit" }, // Max dimensions
+        { width: 800, height: 800, crop: "limit" }, // Max dimensions (أصغر للأشخاص)
         { quality: "auto" }, // Auto quality
       ],
     };

@@ -7,60 +7,209 @@ import { deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
 // =============================
 export const addMovie = async (req: Request, res: Response) => {
   try {
-    const data: any = req.body;
+    console.log("=== DEBUG: Raw Request Body ===");
+    console.log("Body:", req.body);
+    console.log("Files:", req.files);
 
-    // convert Json string to object
+    let data: any = { ...req.body };
 
-    const fieldsToParse = [
+    // إذا كانت البيانات تأتي في حقل movieData كـ JSON string
+    if (data.movieData && typeof data.movieData === "string") {
+      try {
+        console.log("Parsing movieData:", data.movieData);
+        const parsedData = JSON.parse(data.movieData);
+        console.log("Parsed movieData:", parsedData);
+        data = { ...data, ...parsedData };
+        delete data.movieData; // إزالة الحقل المؤقت
+      } catch (parseError) {
+        console.error("Error parsing movieData:", parseError);
+        return res
+          .status(400)
+          .json({ statusMsg: "fail", error: "Invalid movieData format" });
+      }
+    }
+
+    console.log("=== DEBUG: Final Data Object ===");
+    console.log("Final data:", {
+      title: data.title,
+      description: data.description,
+      duration: data.duration,
+      language: data.language,
+      year: data.year,
+      trailer: data.trailer,
+    });
+
+    // Handle file uploads - الآن files هو array بدلاً من object
+    const files = (req as any).files as any[];
+    if (files && Array.isArray(files)) {
+      // تجميع الملفات حسب الاسم
+      const fileMap: { [key: string]: any[] } = {};
+
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMap[fieldName]) {
+          fileMap[fieldName] = [];
+        }
+        fileMap[fieldName].push(file);
+      });
+
+      // Handle poster
+      if (fileMap.poster && fileMap.poster[0]) {
+        data.poster = fileMap.poster[0].path; // Cloudinary URL
+      }
+
+      // Handle gallery images
+      if (fileMap.gallery && fileMap.gallery.length > 0) {
+        data.gallery = fileMap.gallery.map((file: any) => file.path);
+      }
+
+      // Handle person images (directors, cast, writers, producers, singers)
+      const personImageFields = [
+        "directors",
+        "cast",
+        "writers",
+        "producers",
+        "singers",
+      ];
+    }
+
+    // Parse complex fields that come as JSON strings
+    const jsonFields = [
       "directors",
       "writers",
       "cast",
       "producers",
       "singers",
-      "slots",
       "trailer",
       "genres",
-      "auditoriums",
     ];
 
-    fieldsToParse.forEach((field) => {
+    jsonFields.forEach((field) => {
       if (data[field]) {
         try {
-          data[field] = JSON.parse(data[field]);
+          // If it's already an object/array, keep it as is
+          if (typeof data[field] === "object") {
+            // Already parsed
+          } else {
+            // Try to parse if it's a string
+            data[field] = JSON.parse(data[field]);
+          }
         } catch (error) {
           console.error(`Error parsing ${field}:`, error);
+          data[field] = [];
+        }
+      } else {
+        // Set default values for missing fields
+        if (field === "slots") {
+          data[field] = undefined;
+        } else {
           data[field] = [];
         }
       }
     });
 
-    // adding poster
-    const file = (req as any).file;
-    if (file) data.poster = file.path; // Cloudinary URL
+    // Handle person images - match uploaded images to person data
+    const personImageFields = [
+      "directors",
+      "cast",
+      "writers",
+      "producers",
+      "singers",
+    ];
 
-    // Calculate total seats and available seats for each slot
-    if (data.slots && Array.isArray(data.slots)) {
-      data.slots.forEach((slot: any) => {
-        if (slot.seatTypes && Array.isArray(slot.seatTypes)) {
-          const totalSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) => sum + (seatType.totalSeats || 0),
-            0
-          );
-          const availableSeats = slot.seatTypes.reduce(
-            (sum: number, seatType: any) =>
-              sum + (seatType.availableSeats || 0),
-            0
-          );
-
-          slot.totalSeats = totalSeats;
-          slot.availableSeats = availableSeats;
+    // تجميع الملفات حسب الاسم (نكرر العملية هنا)
+    const fileMapLocal: { [key: string]: any[] } = {};
+    if (files && Array.isArray(files)) {
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMapLocal[fieldName]) {
+          fileMapLocal[fieldName] = [];
         }
+        fileMapLocal[fieldName].push(file);
       });
     }
+
+    personImageFields.forEach((field) => {
+      if (
+        data[field] &&
+        Array.isArray(data[field]) &&
+        fileMapLocal &&
+        fileMapLocal[`${field}Images`]
+      ) {
+        const images = fileMapLocal[`${field}Images`];
+        console.log(
+          `🎭 Processing ${field} images:`,
+          images?.length || 0,
+          "images found"
+        );
+
+        if (images) {
+          data[field].forEach((person: any, index: number) => {
+            if (images[index]) {
+              person.image = images[index].path;
+              console.log(
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+              );
+            } else {
+              console.log(
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+              );
+            }
+          });
+        }
+      } else {
+        console.log(`ℹ️ No images uploaded for ${field}`);
+      }
+    });
+
+    // Fix trailer - convert empty array to null
+    if (
+      data.trailer &&
+      Array.isArray(data.trailer) &&
+      data.trailer.length === 0
+    ) {
+      data.trailer = null;
+    }
+
+    // Convert string numbers to actual numbers
+    const numberFields = [
+      "duration",
+      "rating",
+      "year",
+      "budget",
+      "boxOffice",
+      "rottenTomatoesScore",
+    ];
+    numberFields.forEach((field) => {
+      if (data[field] && typeof data[field] === "string") {
+        const numValue = parseFloat(data[field]);
+        if (!isNaN(numValue)) {
+          data[field] = numValue;
+        }
+      }
+    });
+
+    // Convert string booleans
+    const booleanFields = ["isActive", "featured"];
+    booleanFields.forEach((field) => {
+      if (data[field] && typeof data[field] === "string") {
+        data[field] = data[field].toLowerCase() === "true";
+      }
+    });
+
+    // Convert releaseDate
+    if (data.releaseDate && typeof data.releaseDate === "string") {
+      data.releaseDate = new Date(data.releaseDate);
+    }
+
+    // Set default empty arrays for slots and auditoriums
+    data.slots = [];
+    data.auditoriums = [];
 
     const movie = await Movie.create(data);
     res.status(201).json({ statusMsg: "success", movie });
   } catch (err: any) {
+    console.error("Error creating movie:", err);
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
@@ -113,20 +262,175 @@ export const getSpecificMovie = async (req: Request, res: Response) => {
 export const updateMovie = async (req: Request, res: Response) => {
   try {
     const movie = await Movie.findById(req.params.id);
-    if (!movie) return res.status(404).json({ error: "Movie not found" });
+    if (!movie)
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "Movie not found" });
 
-    const data: any = req.body;
-    const file = (req as any).file;
+    const data: any = { ...req.body };
+    const files = (req as any).files;
 
-    if (file && movie.poster) {
-      // Delete old image from Cloudinary
-      try {
-        const publicId = extractPublicId(movie.poster);
-        await deleteFromCloudinary(publicId);
-      } catch (error) {
-        console.error("Error deleting old image from Cloudinary:", error);
+    // Handle file uploads
+    if (files) {
+      // Handle poster
+      if (files.poster && files.poster[0]) {
+        // Delete old poster from Cloudinary
+        if (movie.poster) {
+          try {
+            const publicId = extractPublicId(movie.poster);
+            await deleteFromCloudinary(publicId);
+          } catch (error) {
+            console.error("Error deleting old poster from Cloudinary:", error);
+          }
+        }
+        data.poster = files.poster[0].path;
       }
-      data.poster = file.path; // New Cloudinary URL
+
+      // Handle gallery images (append to existing)
+      if (files.gallery && Array.isArray(files.gallery)) {
+        const newGalleryImages = files.gallery.map((file: any) => file.path);
+        data.gallery = [...(movie.gallery || []), ...newGalleryImages];
+      }
+
+      // Handle person images
+      const personImageFields = [
+        "directors",
+        "cast",
+        "writers",
+        "producers",
+        "singers",
+      ];
+      personImageFields.forEach((field) => {
+        if (files[`${field}Images`] && Array.isArray(files[`${field}Images`])) {
+          // We'll handle this after parsing the main data
+        }
+      });
+    }
+
+    // Parse complex fields that come as JSON strings
+    const jsonFields = [
+      "directors",
+      "writers",
+      "cast",
+      "producers",
+      "singers",
+      "trailer",
+      "genres",
+    ];
+
+    jsonFields.forEach((field) => {
+      if (data[field]) {
+        try {
+          // If it's already an object/array, keep it as is
+          if (typeof data[field] === "object") {
+            // Already parsed
+          } else {
+            // Try to parse if it's a string
+            data[field] = JSON.parse(data[field]);
+          }
+        } catch (error) {
+          console.error(`Error parsing ${field}:`, error);
+          if (field === "slots") {
+            data[field] = undefined;
+          } else {
+            data[field] = [];
+          }
+        }
+      }
+    });
+
+    // Handle person images - match uploaded images to person data
+    const personImageFields = [
+      "directors",
+      "cast",
+      "writers",
+      "producers",
+      "singers",
+    ];
+
+    // تجميع الملفات حسب الاسم (نكرر العملية هنا)
+    const fileMapLocal: { [key: string]: any[] } = {};
+    if (files && Array.isArray(files)) {
+      files.forEach((file) => {
+        const fieldName = file.fieldname;
+        if (!fileMapLocal[fieldName]) {
+          fileMapLocal[fieldName] = [];
+        }
+        fileMapLocal[fieldName].push(file);
+      });
+    }
+
+    personImageFields.forEach((field) => {
+      if (
+        data[field] &&
+        Array.isArray(data[field]) &&
+        fileMapLocal &&
+        fileMapLocal[`${field}Images`]
+      ) {
+        const images = fileMapLocal[`${field}Images`];
+        console.log(
+          `🎭 Processing ${field} images:`,
+          images?.length || 0,
+          "images found"
+        );
+
+        if (images) {
+          data[field].forEach((person: any, index: number) => {
+            if (images[index]) {
+              person.image = images[index].path;
+              console.log(
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+              );
+            } else {
+              console.log(
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+              );
+            }
+          });
+        }
+      } else {
+        console.log(`ℹ️ No images uploaded for ${field}`);
+      }
+    });
+
+    // Fix trailer - convert empty array to null
+    if (
+      data.trailer &&
+      Array.isArray(data.trailer) &&
+      data.trailer.length === 0
+    ) {
+      data.trailer = null;
+    }
+
+    // Convert string numbers to actual numbers
+    const numberFields = [
+      "duration",
+      "rating",
+      "year",
+      "budget",
+      "boxOffice",
+      "rottenTomatoesScore",
+    ];
+    numberFields.forEach((field) => {
+      if (data[field] && typeof data[field] === "string") {
+        const numValue = parseFloat(data[field]);
+        if (!isNaN(numValue)) {
+          data[field] = numValue;
+        }
+      }
+    });
+
+    // Convert string booleans
+    const booleanFields = ["isActive", "featured"];
+    booleanFields.forEach((field) => {
+      if (data[field] && typeof data[field] === "string") {
+        data[field] = data[field].toLowerCase() === "true";
+      }
+    });
+
+    // Convert releaseDate
+    if (data.releaseDate && typeof data.releaseDate === "string") {
+      data.releaseDate = new Date(data.releaseDate);
     }
 
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
@@ -134,6 +438,7 @@ export const updateMovie = async (req: Request, res: Response) => {
     });
     res.status(200).json({ statusMsg: "success", updatedMovie });
   } catch (err: any) {
+    console.error("Error updating movie:", err);
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
