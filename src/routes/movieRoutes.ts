@@ -30,10 +30,14 @@ const router = express.Router();
 
 const upload = multer({ storage });
 
+// Configure multer for movie uploads with multiple files
+// نستخدم any() بدلاً من fields() لأن FormData يرسل الملفات بأسماء مختلفة
+const movieUpload = upload.any();
+
 // =============================
 // Add movie (Admin only)
 // =============================
-router.post("/addMovie", protect, adminOnly, upload.single("poster"), addMovie);
+router.post("/addMovie", protect, adminOnly, movieUpload, addMovie);
 
 // =============================
 // Get paginated movies (Public)
@@ -48,13 +52,7 @@ router.get("/getSpecificMovie/:id", getSpecificMovie);
 // =============================
 // Update movie (Admin only)
 // =============================
-router.put(
-  "/updateMovie/:id",
-  protect,
-  adminOnly,
-  upload.single("poster"),
-  updateMovie
-);
+router.put("/updateMovie/:id", protect, adminOnly, movieUpload, updateMovie);
 
 // =============================
 // Delete movie (Admin only)
