@@ -46,50 +46,6 @@ const TrailerSchema = new mongoose.Schema<ITrailer>(
   { _id: false }
 );
 
-// Seat Type Schema
-const SeatTypeSchema = new mongoose.Schema(
-  {
-    type: { type: String, required: true }, // "VIP", "Regular", "Premium"
-    price: { type: Number, required: true }, // سعر الكرسي من هذا النوع
-    totalSeats: { type: Number, required: true }, // عدد الكراسي المتاحة من هذا النوع
-    availableSeats: { type: Number, required: true }, // الكراسي المتاحة حالياً
-    label: { type: String, required: true }, // "VIP Section", "Regular Seats"
-  },
-  { _id: false }
-);
-
-// Showtime/Slot Schema
-export const SlotSchema = new mongoose.Schema(
-  {
-    date: { type: Date, required: true },
-    time: { type: String, required: true }, // "14:30"
-    ampm: { type: String, enum: ["AM", "PM"], default: "PM" },
-
-    // القاعة التي سيتم عرض الفيلم فيها
-    auditorium: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Auditorium",
-    },
-
-    // بدلاً من price واحد، سنستخدم seatTypes
-    seatTypes: [SeatTypeSchema],
-
-    // إجمالي المقاعد من جميع الأنواع
-    totalSeats: { type: Number, default: 0 },
-    availableSeats: { type: Number, default: 0 },
-
-    // bookedSeats الآن سيكون object يحدد النوع والمقعد
-    bookedSeats: [
-      {
-        seatType: String, // "VIP", "Regular"
-        seatNumber: String, // "A1", "B2"
-        seatId: String, // معرف فريد للمقعد
-      },
-    ],
-  },
-  { _id: true }
-);
-
 // Movie Schema
 export const MovieSchema = new mongoose.Schema(
   {
@@ -136,7 +92,6 @@ export const MovieSchema = new mongoose.Schema(
     singers: [PersonSchema], // singers/musicians
 
     // Cinema-specific fields
-    slots: [SlotSchema], // showtimes for this movie
     auditoriums: [{ type: mongoose.Schema.Types.ObjectId, ref: "Auditorium" }], // which hall show this movie
 
     // Additional Info
@@ -157,8 +112,19 @@ MovieSchema.index({ title: 1 });
 MovieSchema.index({ genres: 1 });
 MovieSchema.index({ category: 1 });
 MovieSchema.index({ releaseDate: 1 });
-MovieSchema.index({ "slots.date": 1 });
 MovieSchema.index({ rating: -1 });
+
+// Virtual Population للحصول على slots مع ترتيب
+MovieSchema.virtual("slots", {
+  ref: "Slot",
+  localField: "_id",
+  foreignField: "movie",
+  options: { sort: { date: 1, time: 1 } },
+});
+
+// عشان الـ virtuals تظهر في JSON/Object
+MovieSchema.set("toJSON", { virtuals: true });
+MovieSchema.set("toObject", { virtuals: true });
 
 // Virtual for formatted duration
 MovieSchema.virtual("formattedDuration").get(function () {
@@ -168,21 +134,46 @@ MovieSchema.virtual("formattedDuration").get(function () {
 });
 
 // Method to check if movie is currently showing
-MovieSchema.methods.isCurrentlyShowing = function () {
+MovieSchema.methods.isCurrentlyShowing = async function () {
+  const SlotModel = mongoose.model("Slot");
   const now = new Date();
-  return this.slots.some(
-    (slot: ISlot) =>
-      slot.date.toDateString() === now.toDateString() && slot.availableSeats > 0
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
   );
+
+  const slots = await SlotModel.find({
+    movie: this._id,
+    date: { $gte: startOfDay, $lt: endOfDay },
+    availableSeats: { $gt: 0 },
+    isActive: true,
+  });
+
+  return slots.length > 0;
 };
 
 // Method to get available slots for a specific date
-MovieSchema.methods.getAvailableSlots = function (date: Date) {
-  return this.slots.filter(
-    (slot: ISlot) =>
-      slot.date.toDateString() === date.toDateString() &&
-      slot.availableSeats > 0
+MovieSchema.methods.getAvailableSlots = async function (date: Date) {
+  const SlotModel = mongoose.model("Slot");
+  const startOfDay = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
   );
+  const endOfDay = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + 1
+  );
+
+  return await SlotModel.find({
+    movie: this._id,
+    date: { $gte: startOfDay, $lt: endOfDay },
+    availableSeats: { $gt: 0 },
+    isActive: true,
+  }).populate("auditorium");
 };
 
 export const Movie = mongoose.model("Movie", MovieSchema);

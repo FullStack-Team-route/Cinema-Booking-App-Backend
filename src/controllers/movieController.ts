@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { Movie } from "../models/Movie.js";
+import { Slot } from "../models/Slot.js";
 import { Auditorium } from "../models/Auditorium.js";
 import mongoose from "mongoose";
 import { deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
@@ -226,6 +227,12 @@ export const getAllMovies = async (req: Request, res: Response) => {
     if (type) filter.type = type;
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .skip((+page - 1) * +limit)
       .limit(+limit)
       .sort({ createdAt: -1 });
@@ -246,7 +253,15 @@ export const getAllMovies = async (req: Request, res: Response) => {
 // =============================
 export const getSpecificMovie = async (req: Request, res: Response) => {
   try {
-    const movie = await Movie.findById(req.params.id).populate("auditoriums");
+    const movie = await Movie.findById(req.params.id)
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium" },
+      })
+      .populate("auditoriums");
+
     if (!movie) {
       return res
         .status(404)
@@ -1001,62 +1016,59 @@ export const getMoviesByDate = async (req: Request, res: Response) => {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Find movies with slots on the target date
-    const movies = await Movie.find({
-      isActive: true,
-      "slots.date": {
+    // Find slots on the target date and populate their movies
+    const slots = await Slot.find({
+      date: {
         $gte: startOfDay,
         $lte: endOfDay,
       },
+      isActive: true,
     })
-      .populate("auditoriums", "name type facilities location isActive")
-      .select(
-        "title poster description rating duration category slots auditoriums"
-      )
-      .sort({ title: 1 })
-      .lean();
+      .populate({
+        path: "movie",
+        match: { isActive: true },
+        select: "title poster description rating duration category",
+      })
+      .populate("auditorium", "name type facilities location isActive")
+      .sort({ "movie.title": 1 });
 
-    // Process movies to include only today's slots
-    const todaysMovies = movies.map((movie: any) => {
-      const movieObj = movie;
+    // Group slots by movie
+    const movieMap: any = {};
 
-      // Filter slots for today only
-      const todaysSlots = movieObj.slots.filter((slot: any) => {
-        const slotDate = new Date(slot.date);
-        return slotDate >= startOfDay && slotDate <= endOfDay;
+    slots.forEach((slot: any) => {
+      if (!slot.movie) return; // Skip if movie was filtered out
+
+      const movieId = slot.movie._id.toString();
+
+      if (!movieMap[movieId]) {
+        movieMap[movieId] = {
+          id: slot.movie._id,
+          title: slot.movie.title,
+          poster: slot.movie.poster,
+          description: slot.movie.description,
+          rating: slot.movie.rating,
+          duration: slot.movie.duration,
+          category: slot.movie.category,
+          schedule: {},
+        };
+      }
+
+      // Group slots by auditorium
+      const auditoriumName = slot.auditorium?.name || "Auditorium 1";
+      if (!movieMap[movieId].schedule[auditoriumName]) {
+        movieMap[movieId].schedule[auditoriumName] = [];
+      }
+
+      movieMap[movieId].schedule[auditoriumName].push({
+        time: slot.time,
+        ampm: slot.ampm,
+        availableSeats: slot.availableSeats,
+        totalSeats: slot.totalSeats,
+        seatTypes: slot.seatTypes,
       });
-
-      // Group slots by auditorium (use auditoriums array from movie)
-      const scheduleByAuditorium: any = {};
-      todaysSlots.forEach((slot: any, index: number) => {
-        // Use auditorium from movie's auditoriums array or default
-        const auditoriumName =
-          movieObj.auditoriums?.[index] ||
-          movieObj.auditoriums?.[0] ||
-          "Auditorium 1";
-        if (!scheduleByAuditorium[auditoriumName]) {
-          scheduleByAuditorium[auditoriumName] = [];
-        }
-        scheduleByAuditorium[auditoriumName].push({
-          time: slot.time,
-          ampm: slot.ampm,
-          price: slot.price,
-          availableSeats: slot.availableSeats,
-          totalSeats: slot.totalSeats,
-        });
-      });
-
-      return {
-        id: movieObj._id,
-        title: movieObj.title,
-        poster: movieObj.poster,
-        description: movieObj.description,
-        rating: movieObj.rating,
-        duration: movieObj.duration,
-        category: movieObj.category,
-        schedule: scheduleByAuditorium,
-      };
     });
+
+    const todaysMovies = Object.values(movieMap);
 
     res.status(200).json({
       statusMsg: "success",
@@ -1083,18 +1095,26 @@ export const getSeatLayout = async (req: Request, res: Response) => {
       });
     }
 
-    const movie = await Movie.findById(movieId).populate("auditoriums");
-    if (!movie) {
-      return res
-        .status(404)
-        .json({ statusMsg: "fail", message: "Movie not found" });
-    }
-
-    const slot = movie.slots.id(slotId);
+    const slot = await Slot.findById(slotId)
+      .populate("auditorium")
+      .populate({
+        path: "movie",
+        select: "title auditoriums",
+        populate: { path: "auditoriums", select: "name type" },
+      });
     if (!slot) {
       return res
         .status(404)
         .json({ statusMsg: "fail", message: "Showtime slot not found" });
+    }
+
+    // التحقق من أن الـ slot ينتمي للفيلم المطلوب
+    const slotMovieId = (slot as any).movie._id.toString();
+    if (slotMovieId !== movieId) {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Slot does not belong to this movie",
+      });
     }
 
     // Generate seat layout for each type
@@ -1136,10 +1156,13 @@ export const getSeatLayout = async (req: Request, res: Response) => {
       seatLayout: {
         movieId,
         slotId,
-        movieTitle: movie.title,
+        movieTitle: (slot as any).movie.title,
         showtime: `${slot.time} ${slot.ampm}`,
         date: slot.date,
-        auditorium: movie.auditoriums?.[0] || "Auditorium 1",
+        auditorium:
+          slot.auditorium ||
+          (slot as any).movie.auditoriums?.[0] ||
+          "Auditorium 1",
         seatTypes: seatLayout,
       },
     });
@@ -1153,688 +1176,3 @@ export const getSeatLayout = async (req: Request, res: Response) => {
 // =============================
 
 // إضافة slot جديد لفيلم معين
-export const addSlotToMovie = async (req: Request, res: Response) => {
-  try {
-    const { movieId } = req.params;
-    const { date, time, ampm, seatTypes } = req.body;
-
-    // التحقق من صحة البيانات
-    if (!date || !time || !seatTypes || !Array.isArray(seatTypes)) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "Date, time, and seatTypes are required",
-      });
-    }
-
-    // البحث عن الفيلم
-    const movie = await Movie.findById(movieId).populate("auditoriums");
-    if (!movie) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Movie not found",
-      });
-    }
-
-    // حساب إجمالي المقاعد والمقاعد المتاحة
-    let totalSeats = 0;
-    let availableSeats = 0;
-
-    seatTypes.forEach((seatType: any) => {
-      if (seatType.totalSeats && seatType.availableSeats) {
-        totalSeats += seatType.totalSeats;
-        availableSeats += seatType.availableSeats;
-      }
-    });
-
-    // إنشاء الـ slot الجديد
-    const newSlot = {
-      date: new Date(date),
-      time,
-      ampm: ampm || "PM",
-      seatTypes,
-      totalSeats,
-      availableSeats,
-      bookedSeats: [],
-    };
-
-    // إضافة الـ slot للفيلم
-    movie.slots.push(newSlot);
-
-    // حفظ الفيلم
-    await movie.save();
-
-    res.status(201).json({
-      statusMsg: "success",
-      message: "Slot added successfully",
-      slot: movie.slots[movie.slots.length - 1],
-    });
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};
-
-// تعديل slot موجود
-export const updateSlot = async (req: Request, res: Response) => {
-  try {
-    const { movieId, slotId } = req.params;
-    const { date, time, ampm, seatTypes } = req.body;
-
-    // البحث عن الفيلم
-    const movie = await Movie.findById(movieId).populate("auditoriums");
-    if (!movie) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Movie not found",
-      });
-    }
-
-    // التحقق من slotId
-    if (!slotId) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "Slot ID is required",
-      });
-    }
-
-    // البحث عن الـ slot
-    const slot = movie.slots.id(slotId);
-    if (!slot) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Slot not found",
-        availableSlots: movie.slots.map((s) => ({
-          _id: s._id,
-          date: s.date,
-          time: s.time,
-        })),
-      });
-    }
-
-    // تحديث البيانات
-    if (date) {
-      const newDate = new Date(date);
-      if (isNaN(newDate.getTime())) {
-        return res.status(400).json({
-          statusMsg: "fail",
-          message: "Invalid date format",
-        });
-      }
-      slot.date = newDate;
-    }
-    if (time) slot.time = time;
-    if (ampm) slot.ampm = ampm;
-
-    // تحديث seatTypes وحساب الإجماليات
-    if (seatTypes !== undefined) {
-      // التحقق من أن seatTypes تم إرساله (قد يكون فارغاً)
-      if (Array.isArray(seatTypes) && seatTypes.length > 0) {
-        // التحقق من صحة البيانات
-        for (const seatType of seatTypes) {
-          if (
-            !seatType.type ||
-            !seatType.price ||
-            !seatType.totalSeats ||
-            seatType.availableSeats === undefined ||
-            !seatType.label
-          ) {
-            return res.status(400).json({
-              statusMsg: "fail",
-              message:
-                "Invalid seatType data. All fields (type, price, totalSeats, availableSeats, label) are required",
-            });
-          }
-        }
-        // مسح seatTypes الحالية وإضافة الجديدة
-        slot.seatTypes.splice(0, slot.seatTypes.length);
-        seatTypes.forEach((seatType: any) => {
-          slot.seatTypes.push(seatType);
-        });
-      } else if (
-        seatTypes === null ||
-        (Array.isArray(seatTypes) && seatTypes.length === 0)
-      ) {
-        // إذا تم إرسال seatTypes فارغ، مسح seatTypes الحالية
-        slot.seatTypes.splice(0, slot.seatTypes.length);
-      }
-      // إذا لم يتم إرسال seatTypes على الإطلاق، اتركه كما هو
-    }
-
-    // إعادة حساب الإجماليات دائماً من seatTypes الحالية
-    // الآن نحسب الإجماليات حتى لو كانت seatTypes فارغة أو غير موجودة
-    let totalSeats = 0;
-    let availableSeats = 0;
-
-    if (
-      slot.seatTypes &&
-      Array.isArray(slot.seatTypes) &&
-      slot.seatTypes.length > 0
-    ) {
-      slot.seatTypes.forEach((seatType: any) => {
-        if (
-          seatType.totalSeats !== undefined &&
-          seatType.availableSeats !== undefined
-        ) {
-          totalSeats += seatType.totalSeats;
-          availableSeats += seatType.availableSeats;
-        }
-      });
-    }
-
-    // تحديث القيم المحسوبة
-    slot.totalSeats = totalSeats;
-    slot.availableSeats = availableSeats;
-
-    // حفظ الفيلم
-    try {
-      const savedMovie = await movie.save();
-
-      // التأكد من أن الـ slot ما زال موجود بعد الحفظ
-      const updatedSlot = savedMovie.slots.id(slotId);
-
-      res.status(200).json({
-        statusMsg: "success",
-        message: "Slot updated successfully",
-        slot: updatedSlot || slot, // إرجاع الـ slot المحدث أو الأصلي إذا لم يتم العثور عليه
-        slotFoundAfterSave: !!updatedSlot,
-      });
-    } catch (saveError: any) {
-      console.error("Error saving movie after slot update:", saveError);
-      return res.status(500).json({
-        statusMsg: "fail",
-        message: "Error saving slot updates",
-        error: saveError.message,
-        slotData: {
-          _id: slot._id,
-          date: slot.date,
-          time: slot.time,
-          seatTypes: slot.seatTypes,
-          totalSeats: slot.totalSeats,
-          availableSeats: slot.availableSeats,
-        },
-      });
-    }
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};
-
-// حذف slot
-export const deleteSlot = async (req: Request, res: Response) => {
-  try {
-    const { movieId, slotId } = req.params;
-
-    // البحث عن الفيلم
-    const movie = await Movie.findById(movieId).populate("auditoriums");
-    if (!movie) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Movie not found",
-      });
-    }
-
-    // التحقق من slotId
-    if (!slotId) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "Slot ID is required",
-      });
-    }
-
-    // البحث عن الـ slot وحذفه
-    const slotIndex = movie.slots.findIndex(
-      (slot: any) => slot._id.toString() === slotId
-    );
-    if (slotIndex === -1) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Slot not found",
-      });
-    }
-
-    // التحقق من عدم وجود حجوزات على هذا الـ slot
-    const slot = movie.slots[slotIndex];
-    if (slot && slot.bookedSeats && slot.bookedSeats.length > 0) {
-      return res.status(400).json({
-        statusMsg: "fail",
-        message: "Cannot delete slot with existing bookings",
-      });
-    }
-
-    // حذف الـ slot
-    movie.slots.splice(slotIndex, 1);
-
-    // حفظ الفيلم
-    await movie.save();
-
-    res.status(200).json({
-      statusMsg: "success",
-      message: "Slot deleted successfully",
-    });
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};
-
-// Helper function لتحديد status الـ slot
-const getSlotStatus = (
-  slotDate: Date,
-  slotTime: string,
-  slotAmpm: string,
-  availableSeats?: number
-): string => {
-  const now = new Date();
-  const slotDateTime = new Date(slotDate);
-
-  // تحويل الوقت لـ 24-hour format
-  const timeParts = slotTime.split(":");
-  const hoursNum = parseInt(timeParts[0] || "0", 10);
-  const minutesNum = parseInt(timeParts[1] || "0", 10);
-
-  if (isNaN(hoursNum) || isNaN(minutesNum)) {
-    return "inactive"; // invalid time format
-  }
-
-  let hours = hoursNum;
-
-  if (slotAmpm === "PM" && hours !== 12) {
-    hours += 12;
-  } else if (slotAmpm === "AM" && hours === 12) {
-    hours = 0;
-  }
-
-  slotDateTime.setHours(hours, minutesNum, 0, 0);
-
-  // مقارنة مع الوقت الحالي
-  if (slotDateTime < now) {
-    return "completed"; // انتهى
-  } else {
-    // الـ slot في المستقبل أو اليوم
-    // نشط إذا كان فيه مقاعد متاحة
-    if (availableSeats !== undefined && availableSeats > 0) {
-      return "active"; // نشط ومقاعد متاحة
-    } else {
-      return "inactive"; // غير نشط (لا مقاعد متاحة)
-    }
-  }
-};
-
-// جلب جميع slots لفيلم معين
-export const getMovieSlots = async (req: Request, res: Response) => {
-  try {
-    const { movieId } = req.params;
-    const { date, page = 1, limit = 10 } = req.query;
-
-    // البحث عن الفيلم
-    const movie = await Movie.findById(movieId).populate("auditoriums");
-    if (!movie) {
-      return res.status(404).json({
-        statusMsg: "fail",
-        message: "Movie not found",
-      });
-    }
-
-    let slots = Array.from(movie.slots);
-
-    // فلترة حسب التاريخ إذا تم تحديده
-    if (date) {
-      const targetDate = new Date(date as string);
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      slots = slots.filter((slot: any) => {
-        const slotDate = new Date(slot.date);
-        return slotDate >= startOfDay && slotDate <= endOfDay;
-      });
-    }
-
-    // ترتيب حسب التاريخ والوقت
-    slots.sort((a: any, b: any) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
-      }
-
-      // إذا كان نفس التاريخ، ترتيب حسب الوقت
-      const timeA = a.time.split(":").map(Number);
-      const timeB = b.time.split(":").map(Number);
-
-      const hourA =
-        a.ampm === "PM" && timeA[0] !== 12
-          ? timeA[0] + 12
-          : a.ampm === "AM" && timeA[0] === 12
-          ? 0
-          : timeA[0];
-      const hourB =
-        b.ampm === "PM" && timeB[0] !== 12
-          ? timeB[0] + 12
-          : b.ampm === "AM" && timeB[0] === 12
-          ? 0
-          : timeB[0];
-
-      if (hourA !== hourB) return hourA - hourB;
-      return timeA[1] - timeB[1];
-    });
-
-    // تقسيم الصفحات
-    const startIndex = (+page - 1) * +limit;
-    const endIndex = startIndex + +limit;
-    const paginatedSlots = slots.slice(startIndex, endIndex);
-
-    const total = slots.length;
-    const totalPages = Math.ceil(total / +limit);
-
-    // إضافة معلومات القاعة لكل slot
-    const movieAuditoriums = (movie as any).auditoriums || [];
-    const slotAuditorium =
-      movieAuditoriums.length > 0 ? movieAuditoriums[0] : null;
-
-    const slotsWithAuditorium = paginatedSlots.map((slot: any) => {
-      const slotObj = slot.toObject ? slot.toObject() : slot;
-      const slotStatus = getSlotStatus(
-        new Date(slotObj.date),
-        slotObj.time,
-        slotObj.ampm,
-        slotObj.availableSeats
-      );
-
-      return {
-        ...slotObj,
-        status: slotStatus,
-        auditorium: slotAuditorium
-          ? {
-              _id: slotAuditorium._id,
-              name: slotAuditorium.name,
-              type: slotAuditorium.type,
-              facilities: slotAuditorium.facilities,
-              location: slotAuditorium.location,
-            }
-          : null,
-      };
-    });
-
-    res.status(200).json({
-      statusMsg: "success",
-      movie: {
-        id: movie._id,
-        title: movie.title,
-        poster: movie.poster,
-        duration: movie.duration,
-      },
-      page: +page,
-      limit: +limit,
-      total,
-      totalPages,
-      slots: slotsWithAuditorium,
-    });
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};
-
-// جلب جميع slots لجميع الأفلام
-export const getAllSlots = async (req: Request, res: Response) => {
-  try {
-    const { date, page = 1, limit = 10, movieId } = req.query;
-
-    // بناء الـ filter
-    const filter: any = {};
-
-    // فلترة حسب تاريخ معين
-    if (date) {
-      const targetDate = new Date(date as string);
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      filter["slots.date"] = {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      };
-    }
-
-    // فلترة حسب فيلم معين
-    if (movieId) {
-      filter._id = movieId;
-    }
-
-    // جلب الأفلام مع الـ slots
-    const movies = await Movie.find(filter, {
-      title: 1,
-      poster: 1,
-      slots: 1,
-      category: 1,
-      auditoriums: 1,
-      duration: 1,
-    }).lean();
-
-    // جلب جميع القاعات للـ manual populate
-    const allAuditoriums = await Auditorium.find({}).lean();
-    const auditoriumMap = new Map(
-      allAuditoriums.map((a: any) => [a._id.toString(), a])
-    );
-
-    // Manual populate للـ auditoriums - فقط ObjectIds الصحيحة
-    movies.forEach((movie: any) => {
-      if (movie.auditoriums && Array.isArray(movie.auditoriums)) {
-        movie.auditoriums = movie.auditoriums
-          .filter((audId: any) => {
-            // فلترة فقط ObjectIds الصحيحة - نتأكد إنها ObjectId valid
-            if (!audId) return false;
-            const idStr =
-              typeof audId === "string"
-                ? audId
-                : audId?._id?.toString() || audId?.toString();
-            // التحقق من إنه ObjectId valid
-            return (
-              mongoose.default.Types.ObjectId.isValid(idStr) &&
-              auditoriumMap.has(idStr)
-            );
-          })
-          .map((audId: any) => {
-            const idStr =
-              typeof audId === "string"
-                ? audId
-                : audId?._id?.toString() || audId?.toString();
-            return auditoriumMap.get(idStr);
-          })
-          .filter(Boolean); // إزالة أي null values
-      } else {
-        movie.auditoriums = [];
-      }
-    });
-
-    // تجميع كل الـ slots مع معلومات الفيلم والقاعة
-    let allSlots: any[] = [];
-
-    movies.forEach((movie: any) => {
-      if (movie.slots && movie.slots.length > 0) {
-        // الحصول على القاعات الخاصة بالفيلم (بعد populate)
-        const movieAuditoriums = movie.auditoriums || [];
-        const primaryAuditorium =
-          movieAuditoriums.length > 0 ? movieAuditoriums[0] : null;
-
-        movie.slots.forEach((slot: any, slotIndex: number) => {
-          // استخدام أول قاعة كقاعة مرتبطة بالـ slot
-          const slotAuditorium =
-            movieAuditoriums.length > 0 ? movieAuditoriums[0] : null;
-
-          // تحديد status الـ slot
-          const slotStatus = getSlotStatus(
-            new Date(slot.date),
-            slot.time,
-            slot.ampm,
-            slot.availableSeats
-          );
-
-          allSlots.push({
-            _id: slot._id,
-            movie: {
-              _id: movie._id,
-              title: movie.title,
-              poster: movie.poster,
-              category: movie.category,
-              duration: movie.duration,
-            },
-            auditorium: slotAuditorium
-              ? {
-                  _id: slotAuditorium._id,
-                  name: slotAuditorium.name,
-                  type: slotAuditorium.type,
-                  facilities: slotAuditorium.facilities,
-                  location: slotAuditorium.location,
-                }
-              : null,
-            date: slot.date,
-            time: slot.time,
-            ampm: slot.ampm,
-            status: slotStatus,
-            totalSeats: slot.totalSeats,
-            availableSeats: slot.availableSeats,
-            seatTypes: slot.seatTypes,
-            bookedSeatsCount: slot.bookedSeats ? slot.bookedSeats.length : 0,
-          });
-        });
-      }
-    });
-
-    // ترتيب حسب التاريخ والوقت
-    allSlots.sort((a: any, b: any) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
-      }
-
-      const timeA = a.time.split(":").map(Number);
-      const timeB = b.time.split(":").map(Number);
-
-      const hourA =
-        a.ampm === "PM" && timeA[0] !== 12
-          ? timeA[0] + 12
-          : a.ampm === "AM" && timeA[0] === 12
-          ? 0
-          : timeA[0];
-      const hourB =
-        b.ampm === "PM" && timeB[0] !== 12
-          ? timeB[0] + 12
-          : b.ampm === "AM" && timeB[0] === 12
-          ? 0
-          : timeB[0];
-
-      if (hourA !== hourB) return hourA - hourB;
-      return timeA[1] - timeB[1];
-    });
-
-    // تقسيم الصفحات
-    const startIndex = (+page - 1) * +limit;
-    const endIndex = startIndex + +limit;
-    const paginatedSlots = allSlots.slice(startIndex, endIndex);
-
-    const total = allSlots.length;
-    const totalPages = Math.ceil(total / +limit);
-
-    res.status(200).json({
-      statusMsg: "success",
-      page: +page,
-      limit: +limit,
-      total,
-      totalPages,
-      slots: paginatedSlots,
-      filters: {
-        date: date || null,
-        movieId: movieId || null,
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};
-
-// إحصائيات الـ Slots
-export const getSlotsStatistics = async (req: Request, res: Response) => {
-  try {
-    // جلب جميع الأفلام مع الـ slots
-    const movies = await Movie.find({
-      isActive: true,
-      "slots.0": { $exists: true }, // فقط الأفلام اللي عندها slots
-    })
-      .select("slots")
-      .lean();
-
-    // حساب تاريخ اليوم (بداية ونهاية اليوم)
-    const today = new Date();
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const endOfToday = new Date(today);
-    endOfToday.setHours(23, 59, 59, 999);
-
-    // إحصائيات
-    let totalShowtimes = 0;
-    let activeToday = 0;
-    let totalBookedSeats = 0;
-    let expectedRevenue = 0;
-
-    movies.forEach((movie: any) => {
-      if (movie.slots && Array.isArray(movie.slots)) {
-        movie.slots.forEach((slot: any) => {
-          totalShowtimes++;
-
-          // التحقق من إن الـ slot نشط اليوم
-          const slotDate = new Date(slot.date);
-          if (slotDate >= startOfToday && slotDate <= endOfToday) {
-            activeToday++;
-          }
-
-          // حساب المقاعد المحجوزة
-          const bookedSeatsCount = slot.bookedSeats
-            ? slot.bookedSeats.length
-            : 0;
-          totalBookedSeats += bookedSeatsCount;
-
-          // حساب الإيرادات المتوقعة
-          if (
-            slot.seatTypes &&
-            Array.isArray(slot.seatTypes) &&
-            bookedSeatsCount > 0
-          ) {
-            // حساب متوسط السعر للمقعد المحجوز
-            // نستخدم bookedSeats لتحديد نوع المقعد ونحسب السعر
-            if (slot.bookedSeats && Array.isArray(slot.bookedSeats)) {
-              slot.bookedSeats.forEach((bookedSeat: any) => {
-                // البحث عن seatType المناسب
-                const seatType = slot.seatTypes.find(
-                  (st: any) => st.type === bookedSeat.seatType
-                );
-                if (seatType && seatType.price) {
-                  expectedRevenue += seatType.price;
-                }
-              });
-            }
-          }
-        });
-      }
-    });
-
-    res.status(200).json({
-      statusMsg: "success",
-      statistics: {
-        totalShowtimes,
-        activeToday,
-        totalBookedSeats,
-        expectedRevenue: Math.round(expectedRevenue * 100) / 100, // تقريب لرقمين عشريين
-      },
-      date: today.toISOString().split("T")[0], // تاريخ اليوم
-    });
-  } catch (err: any) {
-    res.status(500).json({ statusMsg: "fail", error: err.message });
-  }
-};

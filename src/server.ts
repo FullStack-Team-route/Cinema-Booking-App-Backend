@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import auditoriumRoutes from "./routes/auditoriumRoutes.js";
+import slotRoutes from "./routes/slotRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -93,6 +94,7 @@ app.use("/api/movies", movieRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auditoriums", auditoriumRoutes);
+app.use("/api/slots", slotRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
