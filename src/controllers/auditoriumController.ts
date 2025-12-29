@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import { Auditorium } from "../models/Auditorium.js";
 import { Movie } from "../models/Movie.js";
 
@@ -6,6 +7,15 @@ import { Movie } from "../models/Movie.js";
 export const addAuditorium = async (req: Request, res: Response) => {
   try {
     const { name, type, facilities, location } = req.body;
+
+    // التحقق من وجود القاعة بالفعل
+    const existingAuditorium = await Auditorium.findOne({ name });
+    if (existingAuditorium) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Auditorium with this name already exists",
+      });
+    }
 
     const auditorium = await Auditorium.create({
       name,
@@ -58,7 +68,35 @@ export const getAllAuditoriums = async (req: Request, res: Response) => {
 // جلب قاعة محددة
 export const getAuditorium = async (req: Request, res: Response) => {
   try {
-    const auditorium = await Auditorium.findById(req.params.id).populate(
+    const { id } = req.params;
+
+    // التحقق من وجود ID
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Auditorium ID is required",
+      });
+    }
+
+    // التحقق من صحة ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid auditorium ID format",
+      });
+    }
+
+    // البحث عن القاعة و التحقق من وجودها
+    const auditorium = await Auditorium.findById(id);
+    if (!auditorium) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Auditorium not found",
+      });
+    }
+
+    // إعادة جلب القاعة مع البيانات المطلوبة
+    const auditoriumWithMovies = await Auditorium.findById(id).populate(
       "movies",
       "title poster category"
     );
@@ -85,13 +123,109 @@ export const updateAuditorium = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { name, type, facilities, location, isActive } = req.body;
 
-    // البحث عن القاعة أولاً
+    // التحقق من وجود ID
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Auditorium ID is required",
+      });
+    }
+
+    // التحقق من صحة ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid auditorium ID format",
+      });
+    }
+
+    // البحث عن القاعة و التحقق من وجودها
     const auditorium = await Auditorium.findById(id);
     if (!auditorium) {
       return res.status(404).json({
         statusMsg: "fail",
         message: "Auditorium not found",
       });
+    }
+
+    // التحقق من صحة البيانات المدخلة
+    if (name !== undefined) {
+      if (!name || name.trim() === "") {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message: "Auditorium name cannot be empty",
+        });
+      }
+      if (name.length < 2) {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message: "Auditorium name must be at least 2 characters long",
+        });
+      }
+    }
+
+    if (type !== undefined) {
+      const validTypes = ["standard", "premium", "imax", "vip"];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message:
+            "Invalid auditorium type. Must be one of: standard, premium, imax, vip",
+        });
+      }
+    }
+
+    if (location !== undefined) {
+      if (!location || location.trim() === "") {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message: "Auditorium location cannot be empty",
+        });
+      }
+    }
+
+    if (facilities !== undefined) {
+      if (!Array.isArray(facilities)) {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message: "Facilities must be an array of strings",
+        });
+      }
+      // التحقق من أن جميع العناصر في المصفوفة strings
+      if (
+        facilities.some(
+          (facility) => typeof facility !== "string" || facility.trim() === ""
+        )
+      ) {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message: "All facilities must be non-empty strings",
+        });
+      }
+    }
+
+    if (isActive !== undefined && typeof isActive !== "boolean") {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "isActive must be a boolean value",
+      });
+    }
+
+    // التحقق من عدم وجود تغيير في الاسم إذا كانت القاعة تحتوي على slots مستقبلية
+    if (name !== undefined && name !== auditorium.name) {
+      const moviesWithSlots = await Movie.find({
+        _id: { $in: auditorium.movies },
+        "slots.date": { $gte: new Date() },
+      }).select("title");
+
+      if (moviesWithSlots.length > 0) {
+        return res.status(400).json({
+          statusMsg: "fail",
+          message:
+            "Cannot change auditorium name. There are upcoming shows scheduled",
+          movies: moviesWithSlots.map((m) => m.title),
+        });
+      }
     }
 
     // تحديث الحقول المطلوبة فقط (partial update)
@@ -127,7 +261,30 @@ export const deleteAuditorium = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // التحقق من وجود ID
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Auditorium ID is required",
+      });
+    }
+
+    // التحقق من صحة ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid auditorium ID format",
+      });
+    }
+
+    // البحث عن القاعة و التحقق من وجودها
     const auditorium = await Auditorium.findById(id);
+    if (!auditorium) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Auditorium not found",
+      });
+    }
     if (!auditorium) {
       return res.status(404).json({
         statusMsg: "fail",
@@ -171,10 +328,43 @@ export const deleteAuditorium = async (req: Request, res: Response) => {
 // إضافة/إزالة فيلم من قاعة
 export const manageAuditoriumMovies = async (req: Request, res: Response) => {
   try {
-    const { movieId } = req.params;
+    const { id, movieId } = req.params;
     const { action } = req.body; // "add" or "remove"
 
-    const auditorium = await Auditorium.findById(req.params.id);
+    // التحقق من وجود ID للقاعة
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Auditorium ID is required",
+      });
+    }
+
+    // التحقق من وجود ID للفيلم
+    if (!movieId) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Movie ID is required",
+      });
+    }
+
+    // التحقق من صحة ObjectId للقاعة
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid auditorium ID format",
+      });
+    }
+
+    // التحقق من صحة ObjectId للفيلم
+    if (!mongoose.Types.ObjectId.isValid(movieId)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid movie ID format",
+      });
+    }
+
+    // البحث عن القاعة و التحقق من وجودها
+    const auditorium = await Auditorium.findById(id);
     if (!auditorium) {
       return res.status(404).json({
         statusMsg: "fail",
@@ -182,7 +372,8 @@ export const manageAuditoriumMovies = async (req: Request, res: Response) => {
       });
     }
 
-    const movie = await Movie.findById(movieId);
+    // البحث عن الفيلم و التحقق من وجوده
+    const movie = await Movie.findById(movieId!);
     if (!movie) {
       return res.status(404).json({
         statusMsg: "fail",
