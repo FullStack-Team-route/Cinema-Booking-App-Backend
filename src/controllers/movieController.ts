@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
 import { Movie } from "../models/Movie.js";
+import { Slot } from "../models/Slot.js";
+import { Auditorium } from "../models/Auditorium.js";
+import mongoose from "mongoose";
 import { deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
 
 // =============================
@@ -204,7 +207,10 @@ export const addMovie = async (req: Request, res: Response) => {
     data.auditoriums = [];
 
     const movie = await Movie.create(data);
-    res.status(201).json({ statusMsg: "success", movie });
+    const populatedMovie = await Movie.findById((movie as any)._id).populate(
+      "auditoriums"
+    );
+    res.status(201).json({ statusMsg: "success", movie: populatedMovie });
   } catch (err: any) {
     console.error("Error creating movie:", err);
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -220,6 +226,13 @@ export const getAllMovies = async (req: Request, res: Response) => {
     const filter: any = {};
     if (type) filter.type = type;
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .skip((+page - 1) * +limit)
       .limit(+limit)
       .sort({ createdAt: -1 });
@@ -240,7 +253,15 @@ export const getAllMovies = async (req: Request, res: Response) => {
 // =============================
 export const getSpecificMovie = async (req: Request, res: Response) => {
   try {
-    const movie = await Movie.findById(req.params.id);
+    const movie = await Movie.findById(req.params.id)
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium" },
+      })
+      .populate("auditoriums");
+
     if (!movie) {
       return res
         .status(404)
@@ -432,7 +453,7 @@ export const updateMovie = async (req: Request, res: Response) => {
 
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, data, {
       new: true,
-    });
+    }).populate("auditoriums");
     res.status(200).json({ statusMsg: "success", updatedMovie });
   } catch (err: any) {
     console.error("Error updating movie:", err);
@@ -602,6 +623,7 @@ export const searchMovies = async (req: Request, res: Response) => {
     sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -665,6 +687,7 @@ export const getMoviesByGenre = async (req: Request, res: Response) => {
       genres: { $in: [genre] },
       isActive: true,
     })
+      .populate("auditoriums", "name type facilities location isActive")
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -722,6 +745,7 @@ export const getMoviesByYear = async (req: Request, res: Response) => {
       year: yearNum,
       isActive: true,
     })
+      .populate("auditoriums", "name type facilities location isActive")
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -760,6 +784,7 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
     const filter = { rating: { $gte: minRatingNum }, isActive: true };
 
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -805,6 +830,7 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
     filter.isActive = true;
 
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -854,6 +880,7 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
     }
 
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -948,6 +975,7 @@ export const getLatestTrailers = async (req: Request, res: Response) => {
     };
 
     const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
       .select(
         "title description poster genres year duration releaseDate trailer directors producers cast singers"
       )
@@ -988,61 +1016,59 @@ export const getMoviesByDate = async (req: Request, res: Response) => {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Find movies with slots on the target date
-    const movies = await Movie.find({
-      isActive: true,
-      "slots.date": {
+    // Find slots on the target date and populate their movies
+    const slots = await Slot.find({
+      date: {
         $gte: startOfDay,
         $lte: endOfDay,
       },
+      isActive: true,
     })
-      .select(
-        "title poster description rating duration category slots auditoriums"
-      )
-      .sort({ title: 1 })
-      .lean();
+      .populate({
+        path: "movie",
+        match: { isActive: true },
+        select: "title poster description rating duration category",
+      })
+      .populate("auditorium", "name type facilities location isActive")
+      .sort({ "movie.title": 1 });
 
-    // Process movies to include only today's slots
-    const todaysMovies = movies.map((movie: any) => {
-      const movieObj = movie;
+    // Group slots by movie
+    const movieMap: any = {};
 
-      // Filter slots for today only
-      const todaysSlots = movieObj.slots.filter((slot: any) => {
-        const slotDate = new Date(slot.date);
-        return slotDate >= startOfDay && slotDate <= endOfDay;
+    slots.forEach((slot: any) => {
+      if (!slot.movie) return; // Skip if movie was filtered out
+
+      const movieId = slot.movie._id.toString();
+
+      if (!movieMap[movieId]) {
+        movieMap[movieId] = {
+          id: slot.movie._id,
+          title: slot.movie.title,
+          poster: slot.movie.poster,
+          description: slot.movie.description,
+          rating: slot.movie.rating,
+          duration: slot.movie.duration,
+          category: slot.movie.category,
+          schedule: {},
+        };
+      }
+
+      // Group slots by auditorium
+      const auditoriumName = slot.auditorium?.name || "Auditorium 1";
+      if (!movieMap[movieId].schedule[auditoriumName]) {
+        movieMap[movieId].schedule[auditoriumName] = [];
+      }
+
+      movieMap[movieId].schedule[auditoriumName].push({
+        time: slot.time,
+        ampm: slot.ampm,
+        availableSeats: slot.availableSeats,
+        totalSeats: slot.totalSeats,
+        seatTypes: slot.seatTypes,
       });
-
-      // Group slots by auditorium (use auditoriums array from movie)
-      const scheduleByAuditorium: any = {};
-      todaysSlots.forEach((slot: any, index: number) => {
-        // Use auditorium from movie's auditoriums array or default
-        const auditoriumName =
-          movieObj.auditoriums?.[index] ||
-          movieObj.auditoriums?.[0] ||
-          "Auditorium 1";
-        if (!scheduleByAuditorium[auditoriumName]) {
-          scheduleByAuditorium[auditoriumName] = [];
-        }
-        scheduleByAuditorium[auditoriumName].push({
-          time: slot.time,
-          ampm: slot.ampm,
-          price: slot.price,
-          availableSeats: slot.availableSeats,
-          totalSeats: slot.totalSeats,
-        });
-      });
-
-      return {
-        id: movieObj._id,
-        title: movieObj.title,
-        poster: movieObj.poster,
-        description: movieObj.description,
-        rating: movieObj.rating,
-        duration: movieObj.duration,
-        category: movieObj.category,
-        schedule: scheduleByAuditorium,
-      };
     });
+
+    const todaysMovies = Object.values(movieMap);
 
     res.status(200).json({
       statusMsg: "success",
@@ -1069,18 +1095,26 @@ export const getSeatLayout = async (req: Request, res: Response) => {
       });
     }
 
-    const movie = await Movie.findById(movieId);
-    if (!movie) {
-      return res
-        .status(404)
-        .json({ statusMsg: "fail", message: "Movie not found" });
-    }
-
-    const slot = movie.slots.id(slotId);
+    const slot = await Slot.findById(slotId)
+      .populate("auditorium")
+      .populate({
+        path: "movie",
+        select: "title auditoriums",
+        populate: { path: "auditoriums", select: "name type" },
+      });
     if (!slot) {
       return res
         .status(404)
         .json({ statusMsg: "fail", message: "Showtime slot not found" });
+    }
+
+    // التحقق من أن الـ slot ينتمي للفيلم المطلوب
+    const slotMovieId = (slot as any).movie._id.toString();
+    if (slotMovieId !== movieId) {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Slot does not belong to this movie",
+      });
     }
 
     // Generate seat layout for each type
@@ -1122,10 +1156,13 @@ export const getSeatLayout = async (req: Request, res: Response) => {
       seatLayout: {
         movieId,
         slotId,
-        movieTitle: movie.title,
+        movieTitle: (slot as any).movie.title,
         showtime: `${slot.time} ${slot.ampm}`,
         date: slot.date,
-        auditorium: movie.auditoriums?.[0] || "Auditorium 1",
+        auditorium:
+          slot.auditorium ||
+          (slot as any).movie.auditoriums?.[0] ||
+          "Auditorium 1",
         seatTypes: seatLayout,
       },
     });
@@ -1133,3 +1170,9 @@ export const getSeatLayout = async (req: Request, res: Response) => {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
+
+// =============================
+// إدارة الـ Slots (Showtimes)
+// =============================
+
+// إضافة slot جديد لفيلم معين

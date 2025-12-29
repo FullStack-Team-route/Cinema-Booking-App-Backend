@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import Booking from "../models/Booking.js";
 import { Movie } from "../models/Movie.js";
+import { Slot } from "../models/Slot.js";
 import { User } from "../models/User.js";
 
 // ===============================
@@ -23,11 +24,17 @@ export const createBooking = async (req: Request, res: Response) => {
     const movie = await Movie.findById(movieId);
     if (!movie) return res.status(404).json({ message: "Movie not found" });
 
-    // ---------- Find Slot inside movie.slots ----------
-    const foundSlot: any = movie.slots.id(slotId);
+    // ---------- Find Slot ----------
+    const foundSlot = await Slot.findById(slotId);
 
     if (!foundSlot)
       return res.status(404).json({ message: "Showtime slot not found" });
+
+    // ---------- Check if slot belongs to movie ----------
+    if (foundSlot.movie.toString() !== movieId)
+      return res
+        .status(400)
+        .json({ message: "Slot does not belong to this movie" });
 
     // ---------- Check seat availability for each seat type ----------
     const unavailableSeats: string[] = [];
@@ -377,34 +384,31 @@ export const cancelBooking = async (req: Request, res: Response) => {
 
     // Return seats to available if booking was confirmed
     if (booking.status === "confirmed") {
-      const movie = await Movie.findById(booking.movieId);
-      if (movie) {
-        const slot = movie.slots.id(booking.slotId);
-        if (slot) {
-          // Remove booked seats from slot
-          (slot as any).bookedSeats = (slot as any).bookedSeats.filter(
-            (booked: any) =>
-              !booking.seats.some((seat: any) => seat.seatId === booked.seatId)
+      const slot = await Slot.findById(booking.slotId);
+      if (slot) {
+        // Remove booked seats from slot
+        slot.bookedSeats = slot.bookedSeats.filter(
+          (booked: any) =>
+            !booking.seats.some((seat: any) => seat.seatId === booked.seatId)
+        );
+
+        // Return seats to available by type
+        booking.seats.forEach((seat: any) => {
+          const seatType = (slot as any).seatTypes.find(
+            (type: any) => type.type === seat.seatType
           );
+          if (seatType) {
+            seatType.availableSeats += 1;
+          }
+        });
 
-          // Return seats to available by type
-          booking.seats.forEach((seat: any) => {
-            const seatType = (slot as any).seatTypes.find(
-              (type: any) => type.type === seat.seatType
-            );
-            if (seatType) {
-              seatType.availableSeats += 1;
-            }
-          });
+        // Update total available seats
+        slot.availableSeats = (slot as any).seatTypes.reduce(
+          (total: number, type: any) => total + type.availableSeats,
+          0
+        );
 
-          // Update total available seats
-          slot.availableSeats = (slot as any).seatTypes.reduce(
-            (total: number, type: any) => total + type.availableSeats,
-            0
-          );
-
-          await movie.save();
-        }
+        await slot.save();
       }
     }
 
