@@ -9,6 +9,9 @@ export interface UserTypes {
   birthDate: Date;
   password: string;
   role?: "user" | "admin";
+  isActive?: boolean;
+  lastLogin?: Date;
+  updatedBy?: mongoose.Types.ObjectId;
 }
 
 export interface UserDoc extends UserTypes, mongoose.Document {
@@ -36,6 +39,9 @@ const userSchema = new mongoose.Schema<UserDoc>(
     birthDate: { type: Date, required: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    isActive: { type: Boolean, default: true },
+    lastLogin: { type: Date },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   {
     timestamps: true,

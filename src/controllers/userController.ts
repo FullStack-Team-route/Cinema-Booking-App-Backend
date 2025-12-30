@@ -344,7 +344,7 @@ export const getUsers = async (
 ) => {
   try {
     const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.page) || 20;
+    const limit = Number(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
@@ -615,6 +615,404 @@ export const resetPassword = async (
     res.status(200).json({
       statusMsg: "success",
       message: "Password reset successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================
+// Admin User Management
+// =============================
+
+// Delete user (Admin only)
+export const deleteUser = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "User ID is required",
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (id === req.user?.id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot delete your own account",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Prevent deleting other admins (optional security)
+    if (user.role === "admin") {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Cannot delete admin accounts",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update user role (Admin only)
+export const updateUserRole = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "User ID is required",
+      });
+    }
+
+    if (!role || !["user", "admin"].includes(role)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Valid role (user or admin) is required",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Prevent changing own role
+    if (id === req.user?.id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot change your own role",
+      });
+    }
+
+    user.role = role;
+    if (req.user?.id) {
+      user.updatedBy = req.user.id as any;
+    }
+    await user.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "User role updated successfully",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Toggle user status (Admin only)
+export const toggleUserStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "User ID is required",
+      });
+    }
+
+    // Prevent admin from deactivating themselves
+    if (id === req.user?.id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot deactivate your own account",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    user.isActive = !user.isActive;
+    if (req.user?.id) {
+      user.updatedBy = req.user.id as any;
+    }
+    await user.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: `User ${
+        user.isActive ? "activated" : "deactivated"
+      } successfully`,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Search and filter users (Admin only)
+export const searchUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      role,
+      isActive,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const filter: any = {};
+
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Role filter
+    if (role && ["user", "admin"].includes(role as string)) {
+      filter.role = role;
+    }
+
+    // Active status filter
+    if (isActive !== undefined) {
+      filter.isActive = isActive === "true";
+    }
+
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build sort object
+    const sortOptions: any = {};
+    sortOptions[sortBy as string] = sortOrder === "asc" ? 1 : -1;
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select("-password")
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: users,
+
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages,
+      hasNext: pageNum < totalPages,
+      hasPrev: pageNum > 1,
+
+      filters: {
+        search: search || null,
+        role: role || null,
+        isActive: isActive ? isActive === "true" : null,
+        sortBy,
+        sortOrder,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get users statistics (Admin only)
+export const getUsersStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      adminUsers,
+      regularUsers,
+      newUsersLast30Days,
+      newUsersLast7Days,
+      usersByRole,
+      registrationTrends,
+      recentUsers,
+    ] = await Promise.all([
+      // Total users
+      User.countDocuments(),
+
+      // Active users
+      User.countDocuments({ isActive: true }),
+
+      // Inactive users
+      User.countDocuments({ isActive: false }),
+
+      // Admin users
+      User.countDocuments({ role: "admin" }),
+
+      // Regular users
+      User.countDocuments({ role: "user" }),
+
+      // New users last 30 days
+      User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+
+      // New users last 7 days
+      User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+
+      // Users by role
+      User.aggregate([
+        {
+          $group: {
+            _id: "$role",
+            count: { $sum: 1 },
+            active: { $sum: { $cond: ["$isActive", 1, 0] } },
+            inactive: { $sum: { $cond: ["$isActive", 0, 1] } },
+          },
+        },
+        {
+          $project: {
+            role: "$_id",
+            count: 1,
+            active: 1,
+            inactive: 1,
+            _id: 0,
+          },
+        },
+      ]),
+
+      // Registration trends (last 12 months)
+      User.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: new Date(Date.now() - 12 * 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            month: {
+              $concat: [
+                { $toString: "$_id.year" },
+                "-",
+                {
+                  $cond: {
+                    if: { $lt: ["$_id.month", 10] },
+                    then: { $concat: ["0", { $toString: "$_id.month" }] },
+                    else: { $toString: "$_id.month" },
+                  },
+                },
+              ],
+            },
+            count: 1,
+          },
+        },
+        { $sort: { month: 1 } },
+      ]),
+
+      // Recent users (last 10)
+      User.find()
+        .select("fullName username email role isActive createdAt")
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+    ]);
+
+    const stats = {
+      overview: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        adminUsers,
+        regularUsers,
+      },
+      growth: {
+        newUsersLast7Days,
+        newUsersLast30Days,
+        growthRate:
+          totalUsers > 0
+            ? ((newUsersLast30Days / totalUsers) * 100).toFixed(2)
+            : 0,
+      },
+      usersByRole,
+      registrationTrends,
+      recentUsers,
+    };
+
+    res.status(200).json({
+      statusMsg: "success",
+      data: stats,
     });
   } catch (error) {
     next(error);
