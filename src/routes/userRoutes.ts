@@ -7,6 +7,11 @@ import {
   updateUser,
   updatePassword,
   getUsers,
+  deleteUser,
+  updateUserRole,
+  toggleUserStatus,
+  searchUsers,
+  getUsersStats,
   forgotPassword,
   verifyOtp,
   resetPassword,
@@ -16,6 +21,7 @@ import {
   validateRegister,
   validateLogin,
   validateResetPassword,
+  validateUpdateUserRole,
 } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
@@ -36,6 +42,16 @@ router.put("/update-password", protect, updatePassword);
 
 // Admin only routes (authentication + admin role required)
 router.get("/users", protect, adminOnly, getUsers);
+
+router.delete("/users/:id", protect, adminOnly, deleteUser);
+
+router.put("/users/:id/role", protect, adminOnly, validateUpdateUserRole, updateUserRole);
+
+router.put("/users/:id/status", protect, adminOnly, toggleUserStatus);
+
+router.get("/users/search", protect, adminOnly, searchUsers);
+
+router.get("/users/stats", protect, adminOnly, getUsersStats);
 
 // Password reset routes (no authentication required)
 router.post("/forgot-password", forgotPassword);

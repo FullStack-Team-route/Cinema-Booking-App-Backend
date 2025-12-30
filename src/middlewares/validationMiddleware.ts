@@ -180,3 +180,30 @@ export const validateResetPassword = (
 
   next();
 };
+
+// Validation middleware for updating user role (Admin only)
+export const validateUpdateUserRole = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { role } = req.body;
+  const errors: string[] = [];
+
+  // Validate role
+  if (!role || typeof role !== "string") {
+    errors.push("Role is required");
+  } else if (!["user", "admin"].includes(role)) {
+    errors.push("Role must be either 'user' or 'admin'");
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      statusMsg: "fail",
+      message: "Validation failed",
+      errors,
+    });
+  }
+
+  next();
+};
