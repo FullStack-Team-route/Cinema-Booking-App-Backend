@@ -1,0 +1,16 @@
+{
+  "userId": "69380d3b7751a07ced32896e",
+  "email": "sdasdas@gmail.com",
+  "fullName": "sadsad",
+  "username": "sadasdasd",
+  "phoneNumber": "01229064632",
+  "birthDate": "2001-02-08T00:00:00.000Z",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2025-12-09T11:51:23.807Z",
+  "updatedAt": "2025-12-09T11:51:23.807Z",
+  "bookingsCount": 0,
+  "deletedAt": "2025-12-31T18:13:22.674Z",
+  "deletedBy": "6953e171c9c80c9a0f619566",
+  "deletedByEmail": "admin@gmail.com"
+}

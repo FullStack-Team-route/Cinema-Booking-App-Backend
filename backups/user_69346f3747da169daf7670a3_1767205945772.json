@@ -1,0 +1,16 @@
+{
+  "userId": "69346f3747da169daf7670a3",
+  "email": "os61000500017@gmail.com",
+  "fullName": "omarsaleh",
+  "username": "os6100050@gmail.com",
+  "phoneNumber": "01117469746",
+  "birthDate": "2025-12-11T00:00:00.000Z",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2025-12-06T18:00:23.447Z",
+  "updatedAt": "2025-12-06T18:00:23.447Z",
+  "bookingsCount": 0,
+  "deletedAt": "2025-12-31T18:32:25.772Z",
+  "deletedBy": "6953e171c9c80c9a0f619566",
+  "deletedByEmail": "admin@gmail.com"
+}

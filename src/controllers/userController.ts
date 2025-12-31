@@ -1,6 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
+import mongoose from "mongoose";
+import { promises as fs } from "fs";
+import { join } from "path";
 import { User } from "../models/User.js";
 import { Otp } from "../models/Otp.js";
+import Booking from "../models/Booking.js";
 import { generateToken } from "../utils/generateToken.js";
 import { sendOtpEmail } from "../utils/emailService.js";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
@@ -91,6 +95,11 @@ export const loginUser = async (
         .status(401)
         .json({ statusMsg: "fail", message: "Invalid credentials" });
 
+    // Update user status to active and set last login
+    user.status = "active";
+    user.lastLogin = new Date();
+    await user.save();
+
     const token = generateToken({ id: user._id, role: user.role }, "7d");
 
     // Set HTTP-only cookie
@@ -118,11 +127,21 @@ export const loginUser = async (
 };
 
 export const logoutUser = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const userId = req.user?.id;
+
+    // Update user status to offline
+    if (userId) {
+      await User.findByIdAndUpdate(userId, {
+        status: "offline",
+        lastLogin: new Date(),
+      });
+    }
+
     // Clear the authentication cookie
     res.clearCookie("token");
 
@@ -343,21 +362,51 @@ export const getUsers = async (
   next: NextFunction
 ) => {
   try {
+    // Debug logging
+    console.log("Query params:", req.query);
+    console.log("Raw limit:", req.query.limit);
+
     const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
+    const limit = Number(req.query.limit) || 10;
+
+    console.log("Parsed page:", page, "limit:", limit);
+
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      User.find().select("-password").skip(skip).limit(limit).lean(),
+      User.find()
+        .select("-password")
+        .sort({ createdAt: -1 }) // ترتيب ثابت للـ pagination
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       User.countDocuments(),
     ]);
 
+    // إضافة statusMsg لكل مستخدم وضمان وجود status
+    const usersWithStatus = users.map((user) => ({
+      ...user,
+      status: user.status || "offline", // Default to offline if not set
+      statusMsg:
+        user.status === "active"
+          ? "Active"
+          : user.status === "disabled"
+          ? "Disabled"
+          : "Offline",
+    }));
+
+    const totalPages = Math.ceil(total / limit);
+
     res.status(200).json({
       statusMsg: "success",
-      data: users,
+      data: usersWithStatus,
+
       page,
+      limit,
       total,
-      pages: Math.ceil(total / limit),
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
     });
   } catch (error) {
     next(error);
@@ -641,6 +690,13 @@ export const deleteUser = async (
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Invalid user ID format",
+      });
+    }
+
     // Prevent admin from deleting themselves
     if (id === req.user?.id) {
       return res.status(400).json({
@@ -665,11 +721,78 @@ export const deleteUser = async (
       });
     }
 
+    // التحقق من وجود حجوزات
+    const userBookings = await Booking.countDocuments({ userId: id });
+
+    if (userBookings > 0) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot delete user with existing bookings",
+        bookingsCount: userBookings,
+        suggestion:
+          "User has bookings associated. Please cancel or refund bookings first.",
+      });
+    }
+
+    // عمل نسخة احتياطية قبل الحذف
+    const userData = user.toObject() as any;
+
+    // جلب معلومات الإداري الذي يقوم بالحذف
+    let deletedByEmail = "Unknown";
+    if (req.user?.id) {
+      const adminUser = await User.findById(req.user.id).select("email");
+      if (adminUser) {
+        deletedByEmail = adminUser.email;
+      }
+    }
+
+    const userBackup = {
+      userId: user._id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      username: user.username,
+      phoneNumber: user.phoneNumber,
+      birthDate: user.birthDate,
+      role: user.role,
+      status: user.status,
+      createdAt: userData.createdAt,
+      updatedAt: userData.updatedAt,
+      lastLogin: user.lastLogin,
+      bookingsCount: userBookings,
+      deletedAt: new Date(),
+      deletedBy: req.user?.id,
+      deletedByEmail: deletedByEmail,
+    };
+
+    // حفظ النسخة الاحتياطية في ملف JSON
+    const backupDir = join(process.cwd(), "backups");
+    const backupFile = join(backupDir, `user_${user._id}_${Date.now()}.json`);
+
+    try {
+      // إنشاء المجلد إذا لم يكن موجوداً
+      await fs.mkdir(backupDir, { recursive: true });
+
+      // حفظ النسخة الاحتياطية
+      await fs.writeFile(
+        backupFile,
+        JSON.stringify(userBackup, null, 2),
+        "utf-8"
+      );
+    } catch (backupError) {
+      // في حالة فشل النسخة الاحتياطية، نستمر في الحذف لكن نرجع warning
+      console.error("Failed to create backup:", backupError);
+    }
+
+    // حذف المستخدم
     await User.findByIdAndDelete(id);
 
     res.status(200).json({
       statusMsg: "success",
       message: "User deleted successfully",
+      backup: {
+        saved: true,
+        location: backupFile,
+      },
     });
   } catch (error) {
     next(error);
@@ -716,6 +839,13 @@ export const updateUserRole = async (
       });
     }
 
+    if (user.role === "admin") {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Cannot modify other admin account role",
+      });
+    }
+
     user.role = role;
     if (req.user?.id) {
       user.updatedBy = req.user.id as any;
@@ -753,11 +883,11 @@ export const toggleUserStatus = async (
       });
     }
 
-    // Prevent admin from deactivating themselves
+    // Prevent admin from modifying themselves
     if (id === req.user?.id) {
       return res.status(400).json({
         statusMsg: "fail",
-        message: "Cannot deactivate your own account",
+        message: "Cannot modify your own account status",
       });
     }
 
@@ -769,7 +899,16 @@ export const toggleUserStatus = async (
       });
     }
 
-    user.isActive = !user.isActive;
+    // Prevent admin from modifying other admin accounts
+    if (user.role === "admin") {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Cannot modify other admin account status",
+      });
+    }
+
+    // Toggle between active and disabled
+    user.status = user.status === "active" ? "disabled" : "active";
     if (req.user?.id) {
       user.updatedBy = req.user.id as any;
     }
@@ -778,13 +917,94 @@ export const toggleUserStatus = async (
     res.status(200).json({
       statusMsg: "success",
       message: `User ${
-        user.isActive ? "activated" : "deactivated"
+        user.status === "active" ? "activated" : "deactivated"
       } successfully`,
       user: {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
-        isActive: user.isActive,
+        status: user.status,
+        statusMsg:
+          user.status === "active"
+            ? "Active"
+            : user.status === "disabled"
+            ? "Disabled"
+            : "Offline",
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update user status to specific value (Admin only)
+export const updateUserStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "User ID is required",
+      });
+    }
+
+    if (!status || !["active", "disabled", "offline"].includes(status)) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Valid status (active, disabled, offline) is required",
+      });
+    }
+
+    // Prevent admin from changing their own status
+    if (id === req.user?.id) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot modify your own account status",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Prevent admin from modifying other admin accounts
+    if (user.role === "admin") {
+      return res.status(403).json({
+        statusMsg: "fail",
+        message: "Cannot modify other admin account status",
+      });
+    }
+
+    user.status = status;
+    if (req.user?.id) {
+      user.updatedBy = req.user.id as any;
+    }
+    await user.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: `User status updated to ${status} successfully`,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        status: user.status,
+        statusMsg:
+          user.status === "active"
+            ? "Active"
+            : user.status === "disabled"
+            ? "Disabled"
+            : "Offline",
       },
     });
   } catch (error) {
@@ -825,9 +1045,9 @@ export const searchUsers = async (
       filter.role = role;
     }
 
-    // Active status filter
+    // Status filter
     if (isActive !== undefined) {
-      filter.isActive = isActive === "true";
+      filter.status = isActive === "true" ? "active" : "disabled";
     }
 
     const pageNum = Number(page);
@@ -848,11 +1068,23 @@ export const searchUsers = async (
       User.countDocuments(filter),
     ]);
 
+    // إضافة statusMsg لكل مستخدم وضمان وجود status
+    const usersWithStatus = users.map((user) => ({
+      ...user,
+      status: user.status || "offline", // Default to offline if not set
+      statusMsg:
+        user.status === "active"
+          ? "Active"
+          : user.status === "disabled"
+          ? "Disabled"
+          : "Offline",
+    }));
+
     const totalPages = Math.ceil(total / limitNum);
 
     res.status(200).json({
       statusMsg: "success",
-      data: users,
+      data: usersWithStatus,
 
       page: pageNum,
       limit: limitNum,
@@ -890,7 +1122,8 @@ export const getUsersStats = async (
     const [
       totalUsers,
       activeUsers,
-      inactiveUsers,
+      disabledUsers,
+      offlineUsers,
       adminUsers,
       regularUsers,
       newUsersLast30Days,
@@ -903,10 +1136,13 @@ export const getUsersStats = async (
       User.countDocuments(),
 
       // Active users
-      User.countDocuments({ isActive: true }),
+      User.countDocuments({ status: "active" }),
 
-      // Inactive users
-      User.countDocuments({ isActive: false }),
+      // Disabled users
+      User.countDocuments({ status: "disabled" }),
+
+      // Offline users
+      User.countDocuments({ status: "offline" }),
 
       // Admin users
       User.countDocuments({ role: "admin" }),
@@ -926,8 +1162,13 @@ export const getUsersStats = async (
           $group: {
             _id: "$role",
             count: { $sum: 1 },
-            active: { $sum: { $cond: ["$isActive", 1, 0] } },
-            inactive: { $sum: { $cond: ["$isActive", 0, 1] } },
+            active: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+            disabled: {
+              $sum: { $cond: [{ $eq: ["$status", "disabled"] }, 1, 0] },
+            },
+            offline: {
+              $sum: { $cond: [{ $eq: ["$status", "offline"] }, 1, 0] },
+            },
           },
         },
         {
@@ -935,7 +1176,8 @@ export const getUsersStats = async (
             role: "$_id",
             count: 1,
             active: 1,
-            inactive: 1,
+            disabled: 1,
+            offline: 1,
             _id: 0,
           },
         },
@@ -983,7 +1225,7 @@ export const getUsersStats = async (
 
       // Recent users (last 10)
       User.find()
-        .select("fullName username email role isActive createdAt")
+        .select("fullName username email role status createdAt")
         .sort({ createdAt: -1 })
         .limit(10)
         .lean(),
@@ -993,7 +1235,8 @@ export const getUsersStats = async (
       overview: {
         totalUsers,
         activeUsers,
-        inactiveUsers,
+        disabledUsers,
+        offlineUsers,
         adminUsers,
         regularUsers,
       },

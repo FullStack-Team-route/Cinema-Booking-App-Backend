@@ -1,0 +1,16 @@
+{
+  "userId": "692f21510d061a41b7d25665",
+  "email": "omar@gmail.com",
+  "fullName": "omar",
+  "username": "omar",
+  "phoneNumber": "01117469746",
+  "birthDate": "2025-12-01T00:00:00.000Z",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2025-12-02T17:26:41.254Z",
+  "updatedAt": "2025-12-02T17:26:41.254Z",
+  "bookingsCount": 0,
+  "deletedAt": "2025-12-31T18:18:51.814Z",
+  "deletedBy": "6953e171c9c80c9a0f619566",
+  "deletedByEmail": "admin@gmail.com"
+}
