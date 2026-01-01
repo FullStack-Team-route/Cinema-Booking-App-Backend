@@ -207,3 +207,30 @@ export const validateUpdateUserRole = (
 
   next();
 };
+
+// Validation middleware for updating user status (Admin only)
+export const validateUpdateUserStatus = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { status } = req.body;
+  const errors: string[] = [];
+
+  // Validate status
+  if (!status || typeof status !== "string") {
+    errors.push("Status is required");
+  } else if (!["active", "disabled", "offline"].includes(status)) {
+    errors.push("Status must be one of: 'active', 'disabled', 'offline'");
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      statusMsg: "fail",
+      message: "Validation failed",
+      errors,
+    });
+  }
+
+  next();
+};

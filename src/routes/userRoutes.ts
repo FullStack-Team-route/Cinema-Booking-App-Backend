@@ -10,6 +10,7 @@ import {
   deleteUser,
   updateUserRole,
   toggleUserStatus,
+  updateUserStatus,
   searchUsers,
   getUsersStats,
   forgotPassword,
@@ -22,6 +23,7 @@ import {
   validateLogin,
   validateResetPassword,
   validateUpdateUserRole,
+  validateUpdateUserStatus,
 } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
@@ -45,9 +47,23 @@ router.get("/users", protect, adminOnly, getUsers);
 
 router.delete("/users/:id", protect, adminOnly, deleteUser);
 
-router.put("/users/:id/role", protect, adminOnly, validateUpdateUserRole, updateUserRole);
+router.put(
+  "/users/:id/role",
+  protect,
+  adminOnly,
+  validateUpdateUserRole,
+  updateUserRole
+);
 
 router.put("/users/:id/status", protect, adminOnly, toggleUserStatus);
+
+router.put(
+  "/users/:id/set-status",
+  protect,
+  adminOnly,
+  validateUpdateUserStatus,
+  updateUserStatus
+);
 
 router.get("/users/search", protect, adminOnly, searchUsers);
 

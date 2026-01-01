@@ -1,0 +1,16 @@
+{
+  "userId": "69380d227751a07ced32896a",
+  "email": "dsadasdsa@sadsad.com",
+  "fullName": "sdasdas",
+  "username": "serialkiller101",
+  "phoneNumber": "01229064632",
+  "birthDate": "2002-02-24T00:00:00.000Z",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2025-12-09T11:50:58.743Z",
+  "updatedAt": "2025-12-31T18:51:21.766Z",
+  "bookingsCount": 0,
+  "deletedAt": "2025-12-31T18:51:33.687Z",
+  "deletedBy": "6953e171c9c80c9a0f619566",
+  "deletedByEmail": "admin@gmail.com"
+}

@@ -9,7 +9,7 @@ export interface UserTypes {
   birthDate: Date;
   password: string;
   role?: "user" | "admin";
-  isActive?: boolean;
+  status?: "active" | "disabled" | "offline";
   lastLogin?: Date;
   updatedBy?: mongoose.Types.ObjectId;
 }
@@ -39,7 +39,11 @@ const userSchema = new mongoose.Schema<UserDoc>(
     birthDate: { type: Date, required: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
-    isActive: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: ["active", "disabled", "offline"],
+      default: "active",
+    },
     lastLogin: { type: Date },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },

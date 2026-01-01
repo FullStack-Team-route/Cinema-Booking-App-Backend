@@ -1,0 +1,16 @@
+{
+  "userId": "692f17d70d061a41b7d25645",
+  "email": "omar11@example.com",
+  "fullName": "Omar Abdel Moneim",
+  "username": "omar123",
+  "phoneNumber": "+201117469746",
+  "birthDate": "1995-05-24T00:00:00.000Z",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2025-12-02T16:46:15.865Z",
+  "updatedAt": "2025-12-02T16:46:15.865Z",
+  "bookingsCount": 0,
+  "deletedAt": "2025-12-31T18:19:16.603Z",
+  "deletedBy": "6953e171c9c80c9a0f619566",
+  "deletedByEmail": "admin@gmail.com"
+}
