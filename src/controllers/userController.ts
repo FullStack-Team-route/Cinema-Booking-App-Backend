@@ -143,7 +143,11 @@ export const logoutUser = async (
     }
 
     // Clear the authentication cookie
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
 
     res
       .status(200)

@@ -6,6 +6,7 @@ import {
   updateMovie,
   deleteMovie,
   searchMovies,
+  getAllGenres,
   getMoviesByGenre,
   getMoviesByYear,
   getTopRatedMovies,
@@ -59,6 +60,9 @@ router.delete("/deleteMovie/:id", protect, adminOnly, deleteMovie);
 
 // البحث المتقدم الشامل
 router.get("/search", searchMovies);
+
+// الحصول على كل التصنيفات
+router.get("/genres", getAllGenres);
 
 // الاقتراحات التلقائية
 router.get("/autocomplete", searchAutoComplete);
