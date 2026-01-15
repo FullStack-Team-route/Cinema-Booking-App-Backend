@@ -63,8 +63,8 @@ const forgotLimiter = rateLimit({
 // respect proxy headers (needed if behind nginx/Cloudflare/Render/etc.)
 app.set("trust proxy", 1);
 
-// Global rate limit
-app.use(apiLimiter);
+// Global rate limit for API routes
+app.use("/api", apiLimiter);
 // Tighter limit for login endpoint
 app.use("/api/auth/login", loginLimiter);
 // Limit forgot-password to reduce abuse
