@@ -662,6 +662,18 @@ export const searchMovies = async (req: Request, res: Response) => {
 };
 
 // =============================
+// Get All Genres
+// =============================
+export const getAllGenres = async (req: Request, res: Response) => {
+  try {
+    const genres = await Movie.distinct("genres", { isActive: true });
+    res.status(200).json({ statusMsg: "success", genres });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
 // البحث بالتصنيف - Genre Search
 // =============================
 export const getMoviesByGenre = async (req: Request, res: Response) => {
