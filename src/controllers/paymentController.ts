@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import Payment from "../models/Payment.js";
+import Booking from "../models/Booking.js";
 import StripeService from "../utils/stripeService.js";
 import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
 
@@ -9,7 +10,7 @@ import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
 
 export const createPaymentIntent = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { bookingId, amount, currency } = req.body;
@@ -22,7 +23,10 @@ export const createPaymentIntent = async (
     }
 
     // verify if booking exist or not
-    const booking = await bookingId.findOne({ _id: bookingId, userId });
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      userId: userId as any,
+    });
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -37,7 +41,7 @@ export const createPaymentIntent = async (
       amount: Math.round(amount * 100),
       currency: currency || "usd",
       bookingId,
-      userId: userId!,
+      userId: userId as any,
       description: `Payment for booking ${booking.bookingReference}`,
     });
 
@@ -66,15 +70,15 @@ export const createPaymentIntent = async (
 
 export const getPaymentDetails = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { paymentId } = req.params;
     const userId = req.user?.id;
 
     const payment = await Payment.findOne({
-      _id: paymentId,
-      userId,
+      _id: paymentId as any,
+      userId: userId as any,
     }).populate("bookingId", "movie showtime seats bookingReference");
 
     if (!payment) {
@@ -100,7 +104,7 @@ export const getPaymentDetails = async (
 
 export const processRefund = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { paymentIntentId, amount, reason } = req.body;
@@ -116,7 +120,7 @@ export const processRefund = async (
     }
 
     // check permission (user can refund their own payments, admin can refund any)
-    if (!isAdmin && payment.userId.toString() !== userId) {
+    if (!isAdmin && payment.userId.toString() !== (userId as any)) {
       return res
         .status(403)
         .json({ message: "Unauthorized to refund this payment" });
@@ -148,7 +152,7 @@ export const processRefund = async (
 
 export const getUserPayments = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const userId = req.user?.id;
@@ -161,7 +165,7 @@ export const getUserPayments = async (
     const payments = await Payment.find(filter)
       .populate(
         "bookingId",
-        "movie showtime seats totalPrice bookingReference status"
+        "movie showtime seats totalPrice bookingReference status",
       )
       .sort({ createdAt: -1 })
       .skip((+page - 1) * +limit)
@@ -195,7 +199,7 @@ export const getUserPayments = async (
  */
 export const getAllPayments = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const {
@@ -260,7 +264,7 @@ export const getAllPayments = async (
  */
 export const getStripeConfig = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const publishableKey = StripeService.getPublishableKey();
@@ -281,6 +285,86 @@ export const getStripeConfig = async (
     console.error("Get Stripe config error:", error);
     res.status(500).json({
       message: "Failed to retrieve Stripe configuration",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Create Stripe Checkout Session
+ */
+export const createCheckoutSession = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
+  try {
+    const { bookingId } = req.body;
+    const userId = req.user?.id;
+
+    console.log(
+      `[CreateCheckout] Request - BookingID: ${bookingId}, UserID: ${userId}`,
+    );
+
+    if (!bookingId) {
+      return res.status(400).json({ message: "Booking ID is required" });
+    }
+
+    // 1. Find booking by ID only first to check existence
+    const booking = await Booking.findById(bookingId).populate(
+      "movieId",
+      "title",
+    );
+
+    if (!booking) {
+      console.log(
+        `[CreateCheckout] Booking not found in DB with ID: ${bookingId}`,
+      );
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    console.log(`[CreateCheckout] Booking found. Owner: ${booking.userId}`);
+
+    // 2. Check ownership
+    // Ensure both are strings for comparison
+    const bookingOwnerId = booking.userId.toString();
+    const requestUserId = userId?.toString();
+
+    if (bookingOwnerId !== requestUserId) {
+      console.log(
+        `[CreateCheckout] Authorization failed. Token User: ${requestUserId}, Booking Owner: ${bookingOwnerId}`,
+      );
+      return res
+        .status(403)
+        .json({ message: "Unauthorized: You do not own this booking" });
+    }
+
+    if (booking.status === "confirmed") {
+      return res.status(400).json({ message: "Booking already confirmed" });
+    }
+
+    const result = await StripeService.createCheckoutSession({
+      bookingId,
+      userId: userId!,
+      amount: booking.totalPrice,
+      movieTitle: (booking.movieId as any).title || "Movie Ticket",
+      seats: booking.seats.map((s: any) => s.seatId || s.seatNumber),
+      successUrl: `${process.env.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?bookingId=${bookingId}`,
+    });
+
+    res.status(201).json({
+      message: "Checkout session created successfully",
+      success: true,
+      data: {
+        sessionId: result.sessionId,
+        sessionUrl: result.sessionUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("Create checkout session error:", error);
+    res.status(500).json({
+      message: "Failed to create checkout session",
+      success: false,
       error: error.message,
     });
   }

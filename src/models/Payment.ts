@@ -71,13 +71,12 @@ const paymentSchema = new Schema<PaymentType>(
       type: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes
 paymentSchema.index({ bookingId: 1 });
 paymentSchema.index({ userId: 1 });
-paymentSchema.index({ stripePaymentIntentId: 1 });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ createdAt: -1 });
 

@@ -43,7 +43,7 @@ export const createBooking = async (req: Request, res: Response) => {
     for (const seat of seats) {
       // Check if seat is already booked
       const isBooked = foundSlot.bookedSeats?.some(
-        (booked: any) => booked.seatId === seat.seatId
+        (booked: any) => booked.seatId === seat.seatId,
       );
 
       if (isBooked) {
@@ -51,7 +51,7 @@ export const createBooking = async (req: Request, res: Response) => {
       } else {
         // Find the seat type to reduce available seats
         const seatType = (foundSlot as any).seatTypes.find(
-          (type: any) => type.type === seat.seatType
+          (type: any) => type.type === seat.seatType,
         );
         if (seatType && seatType.availableSeats > 0) {
           seatsToBook.push(seat);
@@ -83,10 +83,10 @@ export const createBooking = async (req: Request, res: Response) => {
     // Update total available seats
     foundSlot.availableSeats = (foundSlot as any).seatTypes.reduce(
       (total: number, type: any) => total + type.availableSeats,
-      0
+      0,
     );
 
-    await movie.save();
+    await foundSlot.save();
 
     // ---------- Generate Booking Reference ----------
     const bookingReference =
@@ -94,8 +94,8 @@ export const createBooking = async (req: Request, res: Response) => {
 
     // ---------- Create Booking ----------
     const newBooking = await Booking.create({
-      movieId,
-      userId,
+      movieId: movieId as any,
+      userId: userId as any,
       customer,
       slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
@@ -257,7 +257,7 @@ export const getUserBookings = async (req: Request, res: Response) => {
     const bookings = await Booking.find(filter)
       .populate(
         "movieId",
-        "title poster genres duration rating releaseDate description"
+        "title poster genres duration rating releaseDate description",
       )
       .sort(sortOptions)
       .skip((Number(page) - 1) * Number(limit))
@@ -389,13 +389,13 @@ export const cancelBooking = async (req: Request, res: Response) => {
         // Remove booked seats from slot
         slot.bookedSeats = slot.bookedSeats.filter(
           (booked: any) =>
-            !booking.seats.some((seat: any) => seat.seatId === booked.seatId)
+            !booking.seats.some((seat: any) => seat.seatId === booked.seatId),
         );
 
         // Return seats to available by type
         booking.seats.forEach((seat: any) => {
           const seatType = (slot as any).seatTypes.find(
-            (type: any) => type.type === seat.seatType
+            (type: any) => type.type === seat.seatType,
           );
           if (seatType) {
             seatType.availableSeats += 1;
@@ -405,7 +405,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
         // Update total available seats
         slot.availableSeats = (slot as any).seatTypes.reduce(
           (total: number, type: any) => total + type.availableSeats,
-          0
+          0,
         );
 
         await slot.save();

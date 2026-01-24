@@ -84,7 +84,10 @@ app.use(
   }),
 );
 
-// Middleware
+// ⚠️ IMPORTANT: Webhook route MUST be before express.json() for raw body access
+app.use("/api/webhooks", webhookRoutes);
+
+// Middleware (body parsers)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -101,7 +104,6 @@ app.use("/api/auditoriums", auditoriumRoutes);
 app.use("/api/slots", slotRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/webhooks", webhookRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));

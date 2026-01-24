@@ -1,6 +1,11 @@
 import Stripe from "stripe";
 import Payment from "../models/Payment.js";
 import { Movie } from "../models/Movie.js";
+import Booking from "../models/Booking.js";
+import {
+  sendBookingConfirmation,
+  sendBookingCancellation,
+} from "./emailService.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-11-17.clover",
@@ -78,14 +83,87 @@ export class StripeService {
   }
 
   /**
+   * Create a Stripe Checkout Session for booking
+   */
+  static async createCheckoutSession(data: {
+    bookingId: string;
+    userId: string;
+    amount: number;
+    currency?: string;
+    movieTitle: string;
+    seats: string[];
+    successUrl: string;
+    cancelUrl: string;
+  }) {
+    try {
+      const {
+        bookingId,
+        userId,
+        amount,
+        currency = "egp",
+        movieTitle,
+        seats,
+        successUrl,
+        cancelUrl,
+      } = data;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: currency,
+              product_data: {
+                name: `Cinema Ticket: ${movieTitle}`,
+                description: `Seats: ${seats.join(", ")}`,
+              },
+              unit_amount: Math.round(amount * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        client_reference_id: bookingId,
+        metadata: {
+          bookingId: bookingId.toString(),
+          userId: userId.toString(),
+        },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+
+      // Save Initial Payment record in database
+      const payment = new Payment({
+        bookingId,
+        userId,
+        amount: Math.round(amount * 100),
+        currency,
+        stripePaymentIntentId: session.id, // Using session ID as identifier before we get payment intent
+        status: "pending",
+        description: `Payment for booking ${bookingId} via Checkout`,
+      });
+
+      await payment.save();
+
+      return {
+        sessionId: session.id,
+        sessionUrl: session.url,
+        paymentId: payment._id,
+      };
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      throw new Error(`Failed to create checkout session: ${error.message}`);
+    }
+  }
+
+  /**
    * Confirm payment intent
    */
 
   static async confirmPaymentIntent(paymentIntentId: string) {
     try {
-      const paymentIntent = await stripe.paymentIntents.confirm(
-        paymentIntentId
-      );
+      const paymentIntent =
+        await stripe.paymentIntents.confirm(paymentIntentId);
       return paymentIntent;
     } catch (error) {
       console.error("Error confirming payment intent:", error);
@@ -104,7 +182,7 @@ export class StripeService {
       // update payment status in db
       await Payment.findOneAndUpdate(
         { stripePaymentIntentId: paymentIntentId },
-        { status: "cancelled" }
+        { status: "cancelled" },
       );
 
       return paymentIntent;
@@ -119,9 +197,8 @@ export class StripeService {
    */
   static async getPaymentIntent(paymentIntentId: string) {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId
-      );
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
       return paymentIntent;
     } catch (error) {
       console.error("Error retrieving payment intent:", error);
@@ -184,13 +261,13 @@ export class StripeService {
       });
 
       // Send cancellation email
-      const booking = await Booking.findById(payment.bookingId).populate(
-        "userId",
-        "email"
-      );
-      if (booking && booking.userId) {
+      const booking = await Booking.findById(payment.bookingId)
+        .populate("userId", "email")
+        .populate("movieId", "title");
+
+      if (booking && (booking.userId as any)?.email) {
         await sendBookingCancellation((booking.userId as any).email, {
-          movieTitle: booking.movie.title,
+          movieTitle: (booking.movieId as any).title || "Movie",
           bookingId: booking.bookingReference,
           refundAmount: refundAmount / 100,
         });
@@ -214,25 +291,31 @@ export class StripeService {
       const event = stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        process.env.STRIPE_WEBHOOK_SECRET!,
       );
 
       switch (event.type) {
         case "payment_intent.succeeded":
           await this.handlePaymentSuccess(
-            event.data.object as Stripe.PaymentIntent
+            event.data.object as Stripe.PaymentIntent,
           );
           break;
 
         case "payment_intent.payment_failed":
           await this.handlePaymentFailure(
-            event.data.object as Stripe.PaymentIntent
+            event.data.object as Stripe.PaymentIntent,
           );
           break;
 
         case "payment_intent.canceled":
           await this.handlePaymentCancellation(
-            event.data.object as Stripe.PaymentIntent
+            event.data.object as Stripe.PaymentIntent,
+          );
+          break;
+
+        case "checkout.session.completed":
+          await this.handleCheckoutSessionCompleted(
+            event.data.object as Stripe.Checkout.Session,
           );
           break;
 
@@ -251,7 +334,7 @@ export class StripeService {
    * Handle successful payment
    */
   private static async handlePaymentSuccess(
-    paymentIntent: Stripe.PaymentIntent
+    paymentIntent: Stripe.PaymentIntent,
   ) {
     try {
       // update payment status
@@ -261,7 +344,7 @@ export class StripeService {
           status: "succeeded",
           paymentMethod: paymentIntent.payment_method_types?.[0],
         },
-        { new: true }
+        { new: true },
       );
 
       if (payment) {
@@ -272,25 +355,15 @@ export class StripeService {
             status: "confirmed",
             paymentId: payment._id,
           },
-          { new: true }
-        ).populate("userId", "email fullName");
-
-        // update movie slot availability
-        if (booking) {
-          const movie = await Movie.findById(booking.movieId);
-          if (movie) {
-            const slot = movie.slots.id(booking.slotId);
-            if (slot) {
-              slot.availableSeats -= booking.seats.length;
-              await movie.save();
-            }
-          }
-        }
+          { new: true },
+        )
+          .populate("userId", "email fullName")
+          .populate("movieId", "title");
 
         // Send confirmation email
-        if (booking.userId) {
+        if (booking && (booking.userId as any)?.email) {
           await sendBookingConfirmation((booking.userId as any).email, {
-            movieTitle: booking.movie.title,
+            movieTitle: (booking.movieId as any).title || "Movie",
             showtime: booking.showtime,
             auditorium: booking.auditorium,
             seats: booking.seats,
@@ -310,12 +383,12 @@ export class StripeService {
    * Handle failed payment
    */
   private static async handlePaymentFailure(
-    paymentIntent: Stripe.PaymentIntent
+    paymentIntent: Stripe.PaymentIntent,
   ) {
     try {
       await Payment.findOneAndUpdate(
         { stripePaymentIntentId: paymentIntent.id },
-        { status: "failed" }
+        { status: "failed" },
       );
 
       // Update booking status to cancelled
@@ -338,12 +411,12 @@ export class StripeService {
    * Handle payment cancellation
    */
   private static async handlePaymentCancellation(
-    paymentIntent: Stripe.PaymentIntent
+    paymentIntent: Stripe.PaymentIntent,
   ) {
     try {
       await Payment.findOneAndUpdate(
         { stripePaymentIntentId: paymentIntent.id },
-        { status: "cancelled" }
+        { status: "cancelled" },
       );
 
       // Update booking status to cancelled
@@ -363,6 +436,71 @@ export class StripeService {
   }
 
   /**
+   * Handle checkout session completed
+   */
+  private static async handleCheckoutSessionCompleted(
+    session: Stripe.Checkout.Session,
+  ) {
+    try {
+      const { bookingId, userId } = session.metadata || {};
+
+      if (!bookingId) {
+        console.error("No bookingId in session metadata");
+        return;
+      }
+
+      // Update payment record
+      const payment = await Payment.findOneAndUpdate(
+        {
+          $or: [
+            { stripePaymentIntentId: session.id },
+            { stripePaymentIntentId: session.payment_intent as string },
+          ],
+        },
+        {
+          status: session.payment_status === "paid" ? "succeeded" : "failed",
+          stripePaymentIntentId:
+            (session.payment_intent as string) || session.id,
+          paymentMethod: "card",
+        },
+        { new: true },
+      );
+
+      if (session.payment_status === "paid") {
+        // Update booking status
+        const booking = await Booking.findByIdAndUpdate(
+          bookingId,
+          {
+            status: "confirmed",
+            paymentId: payment?._id,
+          },
+          { new: true },
+        )
+          .populate("userId", "email fullName")
+          .populate("movieId", "title");
+
+        if (booking) {
+          // Send confirmation email
+          if ((booking.userId as any)?.email) {
+            await sendBookingConfirmation((booking.userId as any).email, {
+              movieTitle: (booking.movieId as any).title || "Movie",
+              showtime: booking.showtime,
+              auditorium: booking.auditorium,
+              seats: booking.seats,
+              totalPrice: booking.totalPrice,
+              bookingId: booking.bookingReference,
+            });
+          }
+        }
+      }
+
+      console.log(`Checkout session completed: ${session.id}`);
+    } catch (error) {
+      console.error("Error handling checkout session completed:", error);
+    }
+  }
+
+  /**
    * Get Stripe publishable key for frontend
    */
   static getPublishableKey() {
@@ -370,9 +508,4 @@ export class StripeService {
   }
 }
 
-
-
-export default StripeService
-
-
-
+export default StripeService;

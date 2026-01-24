@@ -9,12 +9,18 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
     const rawBody = req.body;
     const signature = req.headers["stripe-signature"] as string;
 
+    console.log("[Webhook] ✅ Webhook endpoint hit!");
+    console.log("[Webhook] Signature present:", !!signature);
+
     if (!signature) {
+      console.log("[Webhook] ❌ Missing Stripe signature");
       return res.status(400).json({ message: "Missing Stripe signature" });
     }
 
     // Verify and handle webhook
     const event = await StripeService.handleWebhook(rawBody, signature);
+
+    console.log("[Webhook] ✅ Event verified:", event.type);
 
     // Return success response to Stripe
     res.json({ received: true, event: event.type });

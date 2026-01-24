@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  createCheckoutSession,
   createPaymentIntent,
   getAllPayments,
   getPaymentDetails,
@@ -18,6 +19,7 @@ router.get("/config", getStripeConfig);
 router.use(protect);
 
 router.post("/create-intent", createPaymentIntent);
+router.post("/create-checkout-session", createCheckoutSession);
 router.get("/my-payments", getUserPayments);
 router.get("/:paymentId", getPaymentDetails);
 router.post("/refund", processRefund);
