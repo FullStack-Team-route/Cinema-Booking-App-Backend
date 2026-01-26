@@ -17,7 +17,7 @@ import {
 export const registerUser = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { fullName, username, email, phoneNumber, birthDate, password } =
@@ -76,7 +76,7 @@ export const registerUser = async (
 export const loginUser = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { email, password } = req.body;
@@ -129,7 +129,7 @@ export const loginUser = async (
 export const logoutUser = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
@@ -160,7 +160,7 @@ export const logoutUser = async (
 export const updatePassword = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
@@ -229,7 +229,7 @@ export const updatePassword = async (
 export const getCurrentUser = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
@@ -254,6 +254,7 @@ export const getCurrentUser = async (
         id: user._id,
         fullName: user.fullName,
         username: user.username,
+        profileImage: user.profileImage,
         email: user.email,
         phoneNumber: user.phoneNumber,
         birthDate: user.birthDate,
@@ -268,7 +269,7 @@ export const getCurrentUser = async (
 export const updateUser = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
@@ -363,7 +364,7 @@ export const updateUser = async (
 export const getUsers = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     // Debug logging
@@ -395,8 +396,8 @@ export const getUsers = async (
         user.status === "active"
           ? "Active"
           : user.status === "disabled"
-          ? "Disabled"
-          : "Offline",
+            ? "Disabled"
+            : "Offline",
     }));
 
     const totalPages = Math.ceil(total / limit);
@@ -428,7 +429,7 @@ const generateOTP = (): string => {
 export const forgotPassword = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { email } = req.body;
@@ -545,7 +546,7 @@ export const forgotPassword = async (
 export const verifyOtp = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const verificationToken = req.cookies.verification_token;
@@ -618,7 +619,7 @@ export const verifyOtp = async (
 export const resetPassword = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const verificationToken = req.cookies.verification_token;
@@ -682,7 +683,7 @@ export const resetPassword = async (
 export const deleteUser = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -780,7 +781,7 @@ export const deleteUser = async (
       await fs.writeFile(
         backupFile,
         JSON.stringify(userBackup, null, 2),
-        "utf-8"
+        "utf-8",
       );
     } catch (backupError) {
       // في حالة فشل النسخة الاحتياطية، نستمر في الحذف لكن نرجع warning
@@ -807,7 +808,7 @@ export const deleteUser = async (
 export const updateUserRole = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -875,7 +876,7 @@ export const updateUserRole = async (
 export const toggleUserStatus = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -932,8 +933,8 @@ export const toggleUserStatus = async (
           user.status === "active"
             ? "Active"
             : user.status === "disabled"
-            ? "Disabled"
-            : "Offline",
+              ? "Disabled"
+              : "Offline",
       },
     });
   } catch (error) {
@@ -945,7 +946,7 @@ export const toggleUserStatus = async (
 export const updateUserStatus = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -1007,8 +1008,8 @@ export const updateUserStatus = async (
           user.status === "active"
             ? "Active"
             : user.status === "disabled"
-            ? "Disabled"
-            : "Offline",
+              ? "Disabled"
+              : "Offline",
       },
     });
   } catch (error) {
@@ -1020,7 +1021,7 @@ export const updateUserStatus = async (
 export const searchUsers = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const {
@@ -1080,8 +1081,8 @@ export const searchUsers = async (
         user.status === "active"
           ? "Active"
           : user.status === "disabled"
-          ? "Disabled"
-          : "Offline",
+            ? "Disabled"
+            : "Offline",
     }));
 
     const totalPages = Math.ceil(total / limitNum);
@@ -1114,7 +1115,7 @@ export const searchUsers = async (
 export const getUsersStats = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const thirtyDaysAgo = new Date();
@@ -1260,6 +1261,52 @@ export const getUsersStats = async (
     res.status(200).json({
       statusMsg: "success",
       data: stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload and update user profile image
+ */
+export const uploadUserProfileImage = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Please upload an image file",
+      });
+    }
+
+    // Get the user to check for old image
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Delete old image if it exists
+    // Note: With Cloudinary, we might want to delete the old image from Cloudinary too
+    // But for now, we just update the URL. Cloudinary can handle storage optimization separately.
+
+    // Save Cloudinary URL to DB
+    const filePath = req.file.path;
+    user.profileImage = filePath;
+    await user.save();
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: "Profile image uploaded successfully",
+      profileImage: filePath,
     });
   } catch (error) {
     next(error);

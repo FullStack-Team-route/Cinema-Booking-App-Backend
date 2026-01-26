@@ -12,6 +12,7 @@ export interface UserTypes {
   status?: "active" | "disabled" | "offline";
   lastLogin?: Date;
   updatedBy?: mongoose.Types.ObjectId;
+  profileImage?: string;
 }
 
 export interface UserDoc extends UserTypes, mongoose.Document {
@@ -46,10 +47,11 @@ const userSchema = new mongoose.Schema<UserDoc>(
     },
     lastLogin: { type: Date },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    profileImage: { type: String },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Pre-save hook to hash password before saving
@@ -65,7 +67,7 @@ userSchema.pre("save", async function () {
 
 // Instance method to compare password
 userSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };

@@ -16,7 +16,9 @@ import {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  uploadUserProfileImage,
 } from "../controllers/userController.js";
+import { uploadProfileImage } from "../middlewares/uploadMiddleware.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import {
   validateRegister,
@@ -42,6 +44,13 @@ router.put("/update", protect, updateUser);
 
 router.put("/update-password", protect, updatePassword);
 
+router.post(
+  "/profile/upload-image",
+  protect,
+  uploadProfileImage.single("profileImage"),
+  uploadUserProfileImage,
+);
+
 // Admin only routes (authentication + admin role required)
 router.get("/users", protect, adminOnly, getUsers);
 
@@ -52,7 +61,7 @@ router.put(
   protect,
   adminOnly,
   validateUpdateUserRole,
-  updateUserRole
+  updateUserRole,
 );
 
 router.put("/users/:id/status", protect, adminOnly, toggleUserStatus);
@@ -62,7 +71,7 @@ router.put(
   protect,
   adminOnly,
   validateUpdateUserStatus,
-  updateUserStatus
+  updateUserStatus,
 );
 
 router.get("/users/search", protect, adminOnly, searchUsers);
