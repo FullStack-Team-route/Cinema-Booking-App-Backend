@@ -222,6 +222,36 @@ export const getAllBookings = async (req: Request, res: Response) => {
 };
 
 // ===============================
+//  Get Booking By ID (Admin Only)
+// ===============================
+export const getBookingById = async (req: Request, res: Response) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId)
+      .populate(
+        "movieId",
+        "title poster genres duration rating releaseDate description",
+      )
+      .populate("userId", "fullName email phone")
+      .populate("paymentId")
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    return res.status(200).json({
+      statusMsg: "success",
+      data: booking,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ===============================
 //  Get Bookings by User
 // ===============================
 export const getUserBookings = async (req: Request, res: Response) => {
