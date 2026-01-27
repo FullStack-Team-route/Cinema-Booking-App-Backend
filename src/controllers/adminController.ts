@@ -163,10 +163,21 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             showtimeCount: { $size: "$uniqueShowtimes" },
             // Rough occupancy rate estimation (bookings / showtimes)
             occupancyRate: {
-              $round: [
-                { $divide: ["$totalBookings", { $size: "$uniqueShowtimes" }] },
-                1,
-              ],
+              $cond: {
+                if: { $eq: [{ $size: "$uniqueShowtimes" }, 0] },
+                then: 0,
+                else: {
+                  $round: [
+                    {
+                      $divide: [
+                        "$totalBookings",
+                        { $size: "$uniqueShowtimes" },
+                      ],
+                    },
+                    1,
+                  ],
+                },
+              },
             },
             _id: 0,
           },
@@ -346,7 +357,13 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             totalSeats: 1,
             movieCount: { $size: "$uniqueMovies" },
             avgRevenuePerBooking: {
-              $round: [{ $divide: ["$totalRevenue", "$totalBookings"] }, 2],
+              $cond: {
+                if: { $eq: ["$totalBookings", 0] },
+                then: 0,
+                else: {
+                  $round: [{ $divide: ["$totalRevenue", "$totalBookings"] }, 2],
+                },
+              },
             },
             _id: 0,
           },
@@ -397,7 +414,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
       User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
       Booking.distinct("userId", { createdAt: { $gte: thirtyDaysAgo } }).then(
-        (ids) => ids.length
+        (ids) => ids.length,
       ),
 
       // Registration trends
@@ -440,7 +457,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         .sort({ createdAt: -1 })
         .limit(10)
         .select(
-          "customer movie.title totalPrice status createdAt bookingReference"
+          "customer movie.title totalPrice status createdAt bookingReference",
         )
         .lean(),
 
@@ -497,7 +514,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         acc[curr.status] = curr.count;
         return acc;
       },
-      {}
+      {},
     );
 
     // Process booking analytics
