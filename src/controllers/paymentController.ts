@@ -344,7 +344,7 @@ export const createCheckoutSession = async (
 
     const result = await StripeService.createCheckoutSession({
       bookingId,
-      userId: userId!,
+      userId: userId!.toString(),
       amount: booking.totalPrice,
       movieTitle: (booking.movieId as any).title || "Movie Ticket",
       seats: booking.seats.map((s: any) => s.seatId || s.seatNumber),

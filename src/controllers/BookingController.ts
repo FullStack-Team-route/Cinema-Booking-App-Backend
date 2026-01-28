@@ -93,19 +93,20 @@ export const createBooking = async (req: Request, res: Response) => {
       "BK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
     // ---------- Create Booking ----------
-    const newBooking = await Booking.create({
-      movieId: movieId as any,
-      userId: userId as any,
+    const bookingData = {
+      movieId,
+      userId,
       customer,
       slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
       auditorium: movie.auditoriums?.[0] || "Auditorium 1",
       totalPrice,
-      status: "pending",
+      status: "pending" as const,
       bookingReference,
       paymentId: paymentId || null,
       seats,
-    });
+    };
+    const newBooking = await Booking.create(bookingData as any);
 
     return res.status(201).json({
       message: "Booking created successfully",
