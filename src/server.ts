@@ -108,9 +108,12 @@ app.use("/api/payments", paymentRoutes);
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+app.get(
+  "/",
+  (req: import("express").Request, res: import("express").Response) => {
+    res.send("Hello World!");
+  },
+);
 
 app.listen(PORT, () => {
   console.log(`server listening on port http://localhost:${PORT}`);

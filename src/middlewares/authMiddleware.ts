@@ -12,16 +12,23 @@ interface JwtPayload {
 
 // Extend Express Request to include authenticated user
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string | mongoose.Types.ObjectId;
-    role?: string;
-  };
+  user?:
+    | {
+        id: string | mongoose.Types.ObjectId;
+        role?: string | undefined;
+      }
+    | undefined;
+  file?: Express.Multer.File | undefined;
+  files?:
+    | Express.Multer.File[]
+    | { [fieldname: string]: Express.Multer.File[] }
+    | undefined;
 }
 
 export const protect = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     // Get token from cookies
@@ -31,7 +38,6 @@ export const protect = async (
     if (!token) {
       return res.status(401).json({ message: "Not authorized, no token" });
     }
-    
 
     // Verify token
     if (!process.env.JWT_SECRET) {
@@ -68,7 +74,7 @@ export const protect = async (
 export const adminOnly = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     // First, ensure user is authenticated
