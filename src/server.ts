@@ -74,10 +74,21 @@ app.use("/api/auth/login", loginLimiter);
 // Limit forgot-password to reduce abuse
 app.use("/api/auth/forgot-password", forgotLimiter);
 
+// Parse allowed origins from env (comma-separated) or use defaults
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",").map((url) => url.trim())
+  : ["http://localhost:3000"];
+
 app.use(
   cors({
-    // Allow frontend URL from env, fallback to localhost:3000
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true, // Allow cookies to be sent
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
