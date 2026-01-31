@@ -3,8 +3,7 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
-// hpp removed - incompatible with Express 5.x (req.query is getter-only)
+// express-mongo-sanitize and hpp removed - incompatible with Express 5.x (req.query is getter-only)
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -99,15 +98,36 @@ app.use(
   }),
 );
 
-// Prevent NoSQL injection attacks
-app.use(mongoSanitize());
+// Note: express-mongo-sanitize and hpp removed - incompatible with Express 5.x
+// Express 5 makes req.query getter-only, which these packages cannot modify
+// NoSQL injection protection is handled in the sanitization middleware below
 
-// Note: hpp (HTTP Parameter Pollution) removed - incompatible with Express 5.x
-// Express 5 makes req.query getter-only, which hpp cannot modify
+// XSS & NoSQL Injection Protection Middleware - Sanitize request body only
+// (Express 5.x doesn't allow modifying req.query, so we only sanitize body)
+const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
+  // Remove MongoDB operators from objects (NoSQL injection protection)
+  const removeMongoOperators = (obj: any): any => {
+    if (typeof obj !== "object" || obj === null) {
+      return obj;
+    }
 
-// XSS Protection Middleware - Sanitize request body
-const xssProtection = (req: Request, res: Response, next: NextFunction) => {
-  const sanitize = (obj: any): any => {
+    if (Array.isArray(obj)) {
+      return obj.map(removeMongoOperators);
+    }
+
+    const sanitized: any = {};
+    for (const key in obj) {
+      // Skip keys that start with $ (MongoDB operators)
+      if (key.startsWith("$")) {
+        continue;
+      }
+      sanitized[key] = removeMongoOperators(obj[key]);
+    }
+    return sanitized;
+  };
+
+  // XSS sanitization for strings
+  const sanitizeXSS = (obj: any): any => {
     if (typeof obj === "string") {
       return obj
         .replace(/</g, "&lt;")
@@ -117,21 +137,24 @@ const xssProtection = (req: Request, res: Response, next: NextFunction) => {
         .replace(/\//g, "&#x2F;");
     }
     if (Array.isArray(obj)) {
-      return obj.map(sanitize);
+      return obj.map(sanitizeXSS);
     }
     if (obj && typeof obj === "object") {
       const sanitized: any = {};
       for (const key in obj) {
-        sanitized[key] = sanitize(obj[key]);
+        sanitized[key] = sanitizeXSS(obj[key]);
       }
       return sanitized;
     }
     return obj;
   };
 
+  // Only sanitize body (Express 5.x doesn't allow modifying query)
   if (req.body) {
-    req.body = sanitize(req.body);
+    req.body = removeMongoOperators(req.body);
+    req.body = sanitizeXSS(req.body);
   }
+
   next();
 };
 
@@ -183,8 +206,8 @@ app.use(express.json({ limit: "10kb" })); // Limit payload size to prevent DoS
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(cookieParser());
 
-// Apply XSS protection after body parsing
-app.use(xssProtection);
+// Apply sanitization after body parsing (XSS + NoSQL injection protection)
+app.use(sanitizeInput);
 
 // Connect to db
 await connectDB();
