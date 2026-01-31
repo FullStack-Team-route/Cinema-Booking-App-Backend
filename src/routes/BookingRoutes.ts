@@ -11,6 +11,7 @@ import {
 } from "../controllers/BookingController.js";
 
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
+import { authorizeBookingAccess } from "../middlewares/authorizationMiddleware.js";
 
 const router = express.Router();
 
@@ -25,9 +26,14 @@ router.post("/addBooking", protect, createBooking);
 router.get("/allBookings", protect, adminOnly, getAllBookings);
 
 // =========================
-//  Get User Bookings
+//  Get User Bookings (with IDOR protection)
 // =========================
-router.get("/userBookings/:userId", protect, getUserBookings);
+router.get(
+  "/userBookings/:userId",
+  protect,
+  authorizeBookingAccess,
+  getUserBookings,
+);
 
 // =========================
 //  Update Booking (Pending Only)

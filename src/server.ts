@@ -1,6 +1,10 @@
 import "dotenv/config";
 import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import mongoSanitize from "express-mongo-sanitize";
+import hpp from "hpp";
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -15,6 +19,10 @@ import rateLimit from "express-rate-limit";
 import auditoriumRoutes from "./routes/auditoriumRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
 import chatbotRoutes from "./routes/chatbotRoutes.js";
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middlewares/errorMiddleware.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -67,12 +75,80 @@ const forgotLimiter = rateLimit({
 // respect proxy headers (needed if behind nginx/Cloudflare/Render/etc.)
 app.set("trust proxy", 1);
 
+// ====================================
+// 🔐 SECURITY MIDDLEWARE (FIRST)
+// ====================================
+
+// Helmet - Set various HTTP headers for security
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", "https:", "data:"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding images from Cloudinary
+  }),
+);
+
+// Prevent NoSQL injection attacks
+app.use(mongoSanitize());
+
+// Prevent HTTP Parameter Pollution attacks
+app.use(hpp());
+
+// XSS Protection Middleware - Sanitize request body
+const xssProtection = (req: Request, res: Response, next: NextFunction) => {
+  const sanitize = (obj: any): any => {
+    if (typeof obj === "string") {
+      return obj
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#x27;")
+        .replace(/\//g, "&#x2F;");
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(sanitize);
+    }
+    if (obj && typeof obj === "object") {
+      const sanitized: any = {};
+      for (const key in obj) {
+        sanitized[key] = sanitize(obj[key]);
+      }
+      return sanitized;
+    }
+    return obj;
+  };
+
+  if (req.body) {
+    req.body = sanitize(req.body);
+  }
+  next();
+};
+
+// ====================================
+// RATE LIMITING
+// ====================================
+
 // Global rate limit for API routes
 app.use("/api", apiLimiter);
 // Tighter limit for login endpoint
 app.use("/api/auth/login", loginLimiter);
 // Limit forgot-password to reduce abuse
 app.use("/api/auth/forgot-password", forgotLimiter);
+
+// ====================================
+// CORS CONFIGURATION
+// ====================================
 
 // Parse allowed origins from env (comma-separated) or use defaults
 const allowedOrigins = process.env.FRONTEND_URL
@@ -98,15 +174,25 @@ app.use(
 // ⚠️ IMPORTANT: Webhook route MUST be before express.json() for raw body access
 app.use("/api/webhooks", webhookRoutes);
 
-// Middleware (body parsers)
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ====================================
+// BODY PARSERS
+// ====================================
+
+// Middleware (body parsers) with size limits
+app.use(express.json({ limit: "10kb" })); // Limit payload size to prevent DoS
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(cookieParser());
+
+// Apply XSS protection after body parsing
+app.use(xssProtection);
 
 // Connect to db
 await connectDB();
 
-// Routes
+// ====================================
+// API ROUTES
+// ====================================
+
 app.use("/api/auth", userRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/bookings", bookingRoutes);
@@ -119,13 +205,39 @@ app.use("/api/payments", paymentRoutes);
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
 
-app.get(
-  "/",
-  (req: import("express").Request, res: import("express").Response) => {
-    res.send("Hello World!");
-  },
-);
+// Health check endpoint
+app.get("/", (req: Request, res: Response) => {
+  res.send("Cinema Booking API is running 🎬");
+});
+
+// Security check endpoint (development only)
+if (process.env.NODE_ENV === "development") {
+  app.get("/api/security-check", (req: Request, res: Response) => {
+    res.json({
+      headers: res.getHeaders(),
+      securityStatus: "OK",
+      timestamp: new Date().toISOString(),
+    });
+  });
+}
+
+// ====================================
+// ERROR HANDLING
+// ====================================
+
+// 404 handler - must be after all routes
+app.use(notFoundHandler);
+
+// Global error handler - must be last
+app.use(globalErrorHandler);
+
+// ====================================
+// START SERVER
+// ====================================
 
 app.listen(PORT, () => {
-  console.log(`server listening on port http://localhost:${PORT}`);
+  console.log(`🚀 Server listening on port http://localhost:${PORT}`);
+  console.log(
+    `🔐 Security features enabled: Helmet, MongoSanitize, HPP, XSS Protection`,
+  );
 });

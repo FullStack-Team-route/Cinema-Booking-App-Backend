@@ -40,7 +40,7 @@ const isValidBirthDate = (birthDate: string): boolean => {
 export const validateRegister = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const { fullName, username, email, phoneNumber, birthDate, password } =
     req.body;
@@ -60,7 +60,7 @@ export const validateRegister = (
     errors.push("Username is required");
   } else if (!isValidUsername(username)) {
     errors.push(
-      "Username must be 3-20 characters long and contain only letters, numbers, underscores, or hyphens"
+      "Username must be 3-20 characters long and contain only letters, numbers, underscores, or hyphens",
     );
   }
 
@@ -90,7 +90,7 @@ export const validateRegister = (
     errors.push("Password is required");
   } else if (!isValidPassword(password)) {
     errors.push(
-      "Password must be at least 6 characters long and contain at least one letter and one number"
+      "Password must be at least 6 characters long and contain at least one letter and one number",
     );
   }
 
@@ -115,7 +115,7 @@ export const validateRegister = (
 export const validateLogin = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const { email, password } = req.body;
   const errors: string[] = [];
@@ -153,7 +153,7 @@ export const validateLogin = (
 export const validateResetPassword = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const { newPassword } = req.body;
   const errors: string[] = [];
@@ -163,7 +163,7 @@ export const validateResetPassword = (
     errors.push("New password is required");
   } else if (!isValidPassword(newPassword)) {
     errors.push(
-      "Password must be at least 6 characters long and contain at least one letter and one number"
+      "Password must be at least 6 characters long and contain at least one letter and one number",
     );
   }
 
@@ -185,7 +185,7 @@ export const validateResetPassword = (
 export const validateUpdateUserRole = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const { role } = req.body;
   const errors: string[] = [];
@@ -212,7 +212,7 @@ export const validateUpdateUserRole = (
 export const validateUpdateUserStatus = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const { status } = req.body;
   const errors: string[] = [];
