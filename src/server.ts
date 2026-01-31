@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import mongoSanitize from "express-mongo-sanitize";
-import hpp from "hpp";
+// hpp removed - incompatible with Express 5.x (req.query is getter-only)
 import { connectDB } from "./config/db.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -102,8 +102,8 @@ app.use(
 // Prevent NoSQL injection attacks
 app.use(mongoSanitize());
 
-// Prevent HTTP Parameter Pollution attacks
-app.use(hpp());
+// Note: hpp (HTTP Parameter Pollution) removed - incompatible with Express 5.x
+// Express 5 makes req.query getter-only, which hpp cannot modify
 
 // XSS Protection Middleware - Sanitize request body
 const xssProtection = (req: Request, res: Response, next: NextFunction) => {
