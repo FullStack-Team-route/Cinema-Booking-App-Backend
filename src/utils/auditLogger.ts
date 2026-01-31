@@ -5,11 +5,11 @@ import type { Request } from "express";
 interface AuditEvent {
   timestamp: string;
   action: string;
-  userId?: string;
-  userEmail?: string;
+  userId?: string | undefined;
+  userEmail?: string | undefined;
   ip: string;
   userAgent: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
   success: boolean;
 }
 
