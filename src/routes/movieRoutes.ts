@@ -12,11 +12,14 @@ import {
   getTopRatedMovies,
   getMoviesByPerson,
   getFeaturedMovies,
+  getComingSoonMovies,
+  getNowShowingMovies,
   searchAutoComplete,
   getLatestTrailers,
   getSpecificMovie,
   getMoviesByDate,
   getSeatLayout,
+  toggleFeaturedStatus,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { storage } from "../config/cloudinary.js";
@@ -48,6 +51,11 @@ router.get("/getSpecificMovie/:id", getSpecificMovie);
 // Update movie (Admin only)
 // =============================
 router.put("/updateMovie/:id", protect, adminOnly, movieUpload, updateMovie);
+
+// =============================
+// Toggle Featured Status (Admin only)
+// =============================
+router.patch("/toggleFeatured/:id", protect, adminOnly, toggleFeaturedStatus);
 
 // =============================
 // Delete movie (Admin only)
@@ -83,6 +91,12 @@ router.get("/top-rated", getTopRatedMovies);
 // الأفلام المميزة
 router.get("/featured", getFeaturedMovies);
 
+// الأفلام القادمة (بدون مواعيد عرض في الـ 7 أيام القادمة)
+router.get("/coming-soon", getComingSoonMovies);
+
+// الأفلام المعروضة حالياً (لها مواعيد عرض في الـ 7 أيام القادمة)
+router.get("/now-showing", getNowShowingMovies);
+
 // أحدث الـ Trailers
 router.get("/latest-trailers", getLatestTrailers);
 
@@ -91,8 +105,5 @@ router.get("/by-date", getMoviesByDate);
 
 // تخطيط المقاعد للحجز
 router.get("/seat-layout/:movieId/:slotId", getSeatLayout);
-
-// Legacy route for backward compatibility
-router.get("/allMovies", getAllMovies);
 
 export default router;

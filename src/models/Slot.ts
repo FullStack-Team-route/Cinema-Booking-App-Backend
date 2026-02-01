@@ -9,7 +9,7 @@ const SeatTypeSchema = new mongoose.Schema(
     availableSeats: { type: Number, required: true },
     label: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export interface ISlot extends mongoose.Document {
@@ -68,11 +68,12 @@ const SlotSchema = new mongoose.Schema<ISlot>(
 
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 SlotSchema.index({ movie: 1, date: 1, time: 1 });
 SlotSchema.index({ date: 1, auditorium: 1 });
 SlotSchema.index({ movie: 1 });
+SlotSchema.index({ isActive: 1 }); // Performance index for active slot queries
 
 export const Slot = mongoose.model<ISlot>("Slot", SlotSchema);

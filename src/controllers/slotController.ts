@@ -36,6 +36,15 @@ export const addSlotToMovie = async (req: Request, res: Response) => {
       });
     }
 
+    // التحقق من وجود القاعة
+    const auditoriumDoc = await Auditorium.findById(auditorium);
+    if (!auditoriumDoc) {
+      return res.status(404).json({
+        statusMsg: "fail",
+        message: "Auditorium not found",
+      });
+    }
+
     // حساب إجمالي المقاعد والمقاعد المتاحة
     let totalSeats = 0;
     let availableSeats = 0;
@@ -62,6 +71,26 @@ export const addSlotToMovie = async (req: Request, res: Response) => {
 
     // حفظ الـ slot
     await newSlot.save();
+
+    // ربط الفيلم بالقاعة تلقائيا (إذا لم يكن مربوط)
+    const auditoriumId = auditoriumDoc._id.toString();
+    if (!movie.auditoriums.some((a: any) => a.toString() === auditoriumId)) {
+      movie.auditoriums.push(auditoriumId as any);
+      await movie.save();
+    }
+
+    // Sync Category: Update to 'now-showing' if it's 'coming-soon'
+    // This ensures consistency for endpoints that rely on the stored field
+    if (movie.category === "coming-soon") {
+      movie.category = "now-showing";
+      await movie.save();
+    }
+
+    // ربط القاعة بالفيلم (إذا لم يكن مربوط)
+    if (!auditoriumDoc.movies.some((m: any) => m.toString() === movieId)) {
+      auditoriumDoc.movies.push(movieId as any);
+      await auditoriumDoc.save();
+    }
 
     // populate الـ slot مع القاعة
     await newSlot.populate("auditorium");
@@ -220,6 +249,9 @@ export const deleteSlot = async (req: Request, res: Response) => {
   try {
     const { movieId, slotId } = req.params;
 
+    // Import Booking dynamically to avoid circular dependency
+    const { default: Booking } = await import("../models/Booking.js");
+
     // التحقق من slotId
     if (!slotId) {
       return res.status(400).json({
@@ -245,11 +277,26 @@ export const deleteSlot = async (req: Request, res: Response) => {
       });
     }
 
-    // التحقق من عدم وجود حجوزات على هذا الـ slot
+    // التحقق من عدم وجود حجوزات نشطة على هذا الـ slot (من bookedSeats)
     if (slot.bookedSeats && slot.bookedSeats.length > 0) {
       return res.status(400).json({
         statusMsg: "fail",
-        message: "Cannot delete slot with existing bookings",
+        message: "Cannot delete slot with existing booked seats",
+        bookedSeatsCount: slot.bookedSeats.length,
+      });
+    }
+
+    // التحقق من Booking collection أيضا (حجوزات مؤكدة أو معلقة)
+    const activeBookings = await Booking.countDocuments({
+      slotId: slotId,
+      status: { $nin: ["cancelled", "refunded"] },
+    });
+
+    if (activeBookings > 0) {
+      return res.status(400).json({
+        statusMsg: "fail",
+        message: "Cannot delete slot with active bookings",
+        activeBookingsCount: activeBookings,
       });
     }
 
@@ -270,7 +317,7 @@ const getSlotStatus = (
   slotDate: Date,
   slotTime: string,
   slotAmpm: string,
-  availableSeats?: number
+  availableSeats?: number,
 ): string => {
   const now = new Date();
   const slotDateTime = new Date(slotDate);
@@ -359,7 +406,7 @@ export const getMovieSlots = async (req: Request, res: Response) => {
         new Date(slotObj.date),
         slotObj.time,
         slotObj.ampm,
-        slotObj.availableSeats
+        slotObj.availableSeats,
       );
 
       return {
@@ -432,7 +479,7 @@ export const getAllSlots = async (req: Request, res: Response) => {
         new Date(slot.date),
         slot.time,
         slot.ampm,
-        slot.availableSeats
+        slot.availableSeats,
       );
 
       return {
@@ -523,7 +570,7 @@ export const getSlotsStatistics = async (req: Request, res: Response) => {
           slot.bookedSeats.forEach((bookedSeat: any) => {
             // البحث عن seatType المناسب
             const seatType = slot.seatTypes.find(
-              (st: any) => st.type === bookedSeat.seatType
+              (st: any) => st.type === bookedSeat.seatType,
             );
             if (seatType && seatType.price) {
               expectedRevenue += seatType.price;

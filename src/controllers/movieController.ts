@@ -140,7 +140,7 @@ export const addMovie = async (req: Request, res: Response) => {
         console.log(
           `🎭 Processing ${field} images:`,
           images?.length || 0,
-          "images found"
+          "images found",
         );
 
         if (images) {
@@ -148,11 +148,11 @@ export const addMovie = async (req: Request, res: Response) => {
             if (images[index]) {
               person.image = images[index].path;
               console.log(
-                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`,
               );
             } else {
               console.log(
-                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`,
               );
             }
           });
@@ -206,9 +206,13 @@ export const addMovie = async (req: Request, res: Response) => {
     data.slots = [];
     data.auditoriums = [];
 
+    // Enforce default values as per user request
+    data.category = "coming-soon"; // Always start as coming-soon
+    data.isActive = true; // Always active by default unless manually changed later
+
     const movie = await Movie.create(data);
     const populatedMovie = await Movie.findById((movie as any)._id).populate(
-      "auditoriums"
+      "auditoriums",
     );
     res.status(201).json({ statusMsg: "success", movie: populatedMovie });
   } catch (err: any) {
@@ -258,9 +262,12 @@ export const getSpecificMovie = async (req: Request, res: Response) => {
         path: "slots",
         match: { isActive: true },
         options: { sort: { date: 1, time: 1 } },
-        populate: { path: "auditorium" },
+        populate: {
+          path: "auditorium",
+          select: "name type facilities location",
+        },
       })
-      .populate("auditoriums");
+      .populate("auditoriums", "name type facilities location isActive");
 
     if (!movie) {
       return res
@@ -268,7 +275,33 @@ export const getSpecificMovie = async (req: Request, res: Response) => {
         .json({ statusMsg: "fail", message: "Movie not found" });
     }
 
-    res.status(200).json({ statusMsg: "success", movie });
+    // Dynamic Category Calculation Logic (Weekly Window)
+    const movieObj = movie.toObject();
+    const slots = (movie as any).slots || [];
+
+    // Check if there are any slots in the next 7 days
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    const hasActiveSlotsInWindow = slots.some((slot: any) => {
+      const slotDate = new Date(slot.date);
+      return slotDate >= now && slotDate < nextWeek;
+    });
+
+    // Override category based on 7-day window slots
+    // If it has slots THIS WEEK, it's 'now-showing'.
+    // If it has NO slots or only future slots > 7 days, it's 'coming-soon'.
+    if (hasActiveSlotsInWindow) {
+      (movieObj as any).category = "now-showing";
+      (movieObj as any).status = "now-showing";
+    } else {
+      (movieObj as any).category = "coming-soon";
+      (movieObj as any).status = "coming-soon";
+    }
+
+    res.status(200).json({ statusMsg: "success", movie: movieObj });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
@@ -389,7 +422,7 @@ export const updateMovie = async (req: Request, res: Response) => {
         console.log(
           `🎭 Processing ${field} images:`,
           images?.length || 0,
-          "images found"
+          "images found",
         );
 
         if (images) {
@@ -397,11 +430,11 @@ export const updateMovie = async (req: Request, res: Response) => {
             if (images[index]) {
               person.image = images[index].path;
               console.log(
-                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`
+                `✅ ${field}[${index}] (${person.name}): ${images[index].path}`,
               );
             } else {
               console.log(
-                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`
+                `⚠️ ${field}[${index}] (${person.name}): No image uploaded`,
               );
             }
           });
@@ -881,13 +914,10 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
       filter.category = category;
     }
 
-    // Filter by featured status if provided (true/false)
+    // Filter by featured status if provided (true/false), otherwise default to true
     if (featured !== undefined) {
       filter.featured = featured === "true";
-    }
-
-    // If no category or featured filter specified, get all featured movies
-    if (!category && featured === undefined) {
+    } else {
       filter.featured = true;
     }
 
@@ -910,6 +940,121 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
       totalPages,
       movies,
       count: movies.length,
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// =============================
+// الأفلام القادمة - Coming Soon Movies (ليس لها مواعيد عرض في الـ 7 أيام القادمة)
+// =============================
+export const getComingSoonMovies = async (req: Request, res: Response) => {
+  try {
+    const {
+      limit = 10,
+      page = 1,
+      sortBy = "releaseDate",
+      sortOrder = "asc",
+    } = req.query as any;
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
+    // تحديد نافذة الـ 7 أيام
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    // جلب IDs الأفلام اللي عندها slots نشطة في خلال الـ 7 أيام القادمة
+    const moviesWithSlotsInWindow = await Slot.distinct("movie", {
+      date: { $gte: now, $lt: nextWeek }, // فقط في حدود الأسبوع
+      isActive: true,
+    });
+
+    // البحث عن الأفلام اللي مش في القائمة دي
+    const filter: any = {
+      isActive: true,
+      _id: { $nin: moviesWithSlotsInWindow },
+    };
+
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
+      count: movies.length,
+      note: "Showing movies without showtimes in the next 7 days",
+    });
+  } catch (err: any) {
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};
+
+// =============================
+// يعرض حالياً - Now Showing Movies (لها مواعيد عرض في الـ 7 أيام القادمة)
+// =============================
+export const getNowShowingMovies = async (req: Request, res: Response) => {
+  try {
+    const {
+      limit = 10,
+      page = 1,
+      sortBy = "rating",
+      sortOrder = "desc",
+    } = req.query as any;
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today to include all of today's slots
+    // تحديد نافذة الـ 7 أيام
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    // جلب IDs الأفلام اللي عندها slots نشطة في خلال الـ 7 أيام القادمة
+    const moviesWithSlotsInWindow = await Slot.distinct("movie", {
+      date: { $gte: now, $lt: nextWeek },
+      isActive: true,
+    });
+
+    // البحث عن الأفلام اللي في القائمة دي
+    const filter: any = {
+      isActive: true,
+      _id: { $in: moviesWithSlotsInWindow },
+    };
+
+    const sortOptions: any = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    const movies = await Movie.find(filter)
+      .populate("auditoriums", "name type facilities location isActive")
+      .sort(sortOptions)
+      .skip((+page - 1) * +limit)
+      .limit(+limit);
+
+    const total = await Movie.countDocuments(filter);
+    const totalPages = Math.ceil(total / +limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      page: +page,
+      limit: +limit,
+      total,
+      totalPages,
+      movies,
+      count: movies.length,
+      note: "Showing movies with showtimes in the next 7 days",
     });
   } catch (err: any) {
     res.status(500).json({ statusMsg: "fail", error: err.message });
@@ -989,7 +1134,7 @@ export const getLatestTrailers = async (req: Request, res: Response) => {
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
       .select(
-        "title description poster genres year duration releaseDate trailer directors producers cast singers"
+        "title description poster genres year duration releaseDate trailer directors producers cast singers",
       )
       .sort({ releaseDate: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
@@ -1145,7 +1290,7 @@ export const getSeatLayout = async (req: Request, res: Response) => {
           col++
         ) {
           const seatId = `${seatType.type.charAt(0)}${row}${String.fromCharCode(
-            64 + col
+            64 + col,
           )}`;
           if (!bookedSeatsForType.includes(seatId)) {
             availableSeats.push(seatId);
@@ -1188,3 +1333,43 @@ export const getSeatLayout = async (req: Request, res: Response) => {
 // =============================
 
 // إضافة slot جديد لفيلم معين
+
+// =============================
+// Toggle Featured Status
+// =============================
+export const toggleFeaturedStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    console.log(` Toggling featured status for movie: ${id}`);
+
+    const movie = await Movie.findById(id);
+
+    if (!movie) {
+      return res
+        .status(404)
+        .json({ statusMsg: "fail", message: "Movie not found" });
+    }
+
+    const oldStatus = movie.featured;
+    movie.featured = !oldStatus;
+
+    // Use markModified just in case
+    movie.markModified("featured");
+
+    const savedMovie = await movie.save();
+
+    console.log(
+      `✅ Featured status changed from ${oldStatus} to ${savedMovie.featured}`,
+    );
+
+    res.status(200).json({
+      statusMsg: "success",
+      message: `Movie featured status updated to ${savedMovie.featured}`,
+      featured: savedMovie.featured,
+      movie: savedMovie,
+    });
+  } catch (err: any) {
+    console.error("❌ Error in toggleFeaturedStatus:", err);
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};

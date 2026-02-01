@@ -32,7 +32,7 @@ const PersonSchema = new mongoose.Schema<IPerson>(
     role: { type: String }, // director, actor, producer, etc.
     image: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Trailer Schema
@@ -43,7 +43,7 @@ const TrailerSchema = new mongoose.Schema<ITrailer>(
     duration: Number, // seconds
     title: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Movie Schema
@@ -81,7 +81,7 @@ export const MovieSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: ["now-showing", "coming-soon", "featured", "special-screening"],
-      default: "now-showing",
+      default: "coming-soon",
     },
 
     // Cast & Crew
@@ -104,7 +104,7 @@ export const MovieSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     featured: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes for better performance
@@ -141,7 +141,7 @@ MovieSchema.methods.isCurrentlyShowing = async function () {
   const endOfDay = new Date(
     now.getFullYear(),
     now.getMonth(),
-    now.getDate() + 1
+    now.getDate() + 1,
   );
 
   const slots = await SlotModel.find({
@@ -160,12 +160,12 @@ MovieSchema.methods.getAvailableSlots = async function (date: Date) {
   const startOfDay = new Date(
     date.getFullYear(),
     date.getMonth(),
-    date.getDate()
+    date.getDate(),
   );
   const endOfDay = new Date(
     date.getFullYear(),
     date.getMonth(),
-    date.getDate() + 1
+    date.getDate() + 1,
   );
 
   return await SlotModel.find({

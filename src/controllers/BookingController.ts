@@ -93,13 +93,21 @@ export const createBooking = async (req: Request, res: Response) => {
       "BK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
     // ---------- Create Booking ----------
+    // Get auditorium name from slot
+    const populatedSlot = await Slot.findById(slotId).populate(
+      "auditorium",
+      "name",
+    );
+    const auditoriumName =
+      (populatedSlot as any)?.auditorium?.name || "Auditorium 1";
+
     const bookingData = {
       movieId,
       userId,
       customer,
       slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
-      auditorium: movie.auditoriums?.[0] || "Auditorium 1",
+      auditorium: auditoriumName,
       totalPrice,
       status: "pending" as const,
       bookingReference,
