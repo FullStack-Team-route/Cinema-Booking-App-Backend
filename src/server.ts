@@ -212,6 +212,10 @@ app.use(sanitizeInput);
 // Connect to db
 await connectDB();
 
+// Start cleanup job for expired bookings
+import { startCleanupJob } from "./utils/cleanupService.js";
+startCleanupJob();
+
 // ====================================
 // API ROUTES
 // ====================================
