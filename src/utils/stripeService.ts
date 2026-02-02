@@ -519,14 +519,21 @@ export class StripeService {
             console.log(
               `[StripeService] 📧 Sending confirmation email to ${(booking.userId as any).email}`,
             );
-            await sendBookingConfirmation((booking.userId as any).email, {
-              movieTitle: (booking.movieId as any).title || "Movie",
-              showtime: booking.showtime,
-              auditorium: booking.auditorium,
-              seats: booking.seats,
-              totalPrice: booking.totalPrice,
-              bookingId: booking.bookingReference,
-            });
+            try {
+              await sendBookingConfirmation((booking.userId as any).email, {
+                movieTitle: (booking.movieId as any).title || "Movie",
+                showtime: booking.showtime,
+                auditorium: booking.auditorium,
+                seats: booking.seats,
+                totalPrice: booking.totalPrice,
+                bookingId: booking.bookingReference,
+              });
+              console.log(`[StripeService] 📧 Email sent successfully`);
+            } catch (emailError: any) {
+              console.error(
+                `[StripeService] ⚠️ Failed to send email, but payment is successful: ${emailError.message}`,
+              );
+            }
           }
         } else {
           console.error(
