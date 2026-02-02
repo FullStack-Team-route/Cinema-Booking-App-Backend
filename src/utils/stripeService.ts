@@ -442,12 +442,24 @@ export class StripeService {
     session: Stripe.Checkout.Session,
   ) {
     try {
+      console.log(
+        `[StripeService] 🔔 Handling checkout.session.completed for session: ${session.id}`,
+      );
+      console.log(
+        `[StripeService] Metadata received:`,
+        JSON.stringify(session.metadata),
+      );
+
       const { bookingId, userId } = session.metadata || {};
 
       if (!bookingId) {
-        console.error("No bookingId in session metadata");
+        console.error(
+          "[StripeService] ❌ No bookingId in session metadata. Cannot process payment.",
+        );
         return;
       }
+
+      console.log(`[StripeService] 🔍 Searching for payment record...`);
 
       // Update payment record
       const payment = await Payment.findOneAndUpdate(
@@ -462,11 +474,32 @@ export class StripeService {
           stripePaymentIntentId:
             (session.payment_intent as string) || session.id,
           paymentMethod: "card",
+          // Store raw session data for debugging
+          $set: { "metadata.stripeSession": session },
         },
         { new: true },
       );
 
+      if (!payment) {
+        console.error(
+          `[StripeService] ❌ Payment record NOT FOUND. BookingId: ${bookingId}, SessionId: ${session.id}`,
+        );
+        // Fallback: This is critical. If payment record isn't found using session ID,
+        // it might be because of a race condition or lost ID.
+        // We could try to find by bookingId as a last resort?
+        // Let's just log for now to identify the issue.
+        return;
+      }
+
+      console.log(
+        `[StripeService] ✅ Payment record updated. New Status: ${payment.status}`,
+      );
+
       if (session.payment_status === "paid") {
+        console.log(
+          `[StripeService] 💰 Payment paid. Updating booking ${bookingId} to confirmed...`,
+        );
+
         // Update booking status
         const booking = await Booking.findByIdAndUpdate(
           bookingId,
@@ -480,8 +513,12 @@ export class StripeService {
           .populate("movieId", "title");
 
         if (booking) {
+          console.log(`[StripeService] ✅ Booking confirmed: ${booking.id}`);
           // Send confirmation email
           if ((booking.userId as any)?.email) {
+            console.log(
+              `[StripeService] 📧 Sending confirmation email to ${(booking.userId as any).email}`,
+            );
             await sendBookingConfirmation((booking.userId as any).email, {
               movieTitle: (booking.movieId as any).title || "Movie",
               showtime: booking.showtime,
@@ -491,12 +528,23 @@ export class StripeService {
               bookingId: booking.bookingReference,
             });
           }
+        } else {
+          console.error(
+            `[StripeService] ❌ Booking NOT FOUND with ID: ${bookingId}`,
+          );
         }
+      } else {
+        console.warn(
+          `[StripeService] ⚠️ Session payment status is NOT paid: ${session.payment_status}`,
+        );
       }
 
-      console.log(`Checkout session completed: ${session.id}`);
+      console.log(`[StripeService] ✅ Checkout session processing completed.`);
     } catch (error) {
-      console.error("Error handling checkout session completed:", error);
+      console.error(
+        "[StripeService] ❌ Error handling checkout session completed:",
+        error,
+      );
     }
   }
 
