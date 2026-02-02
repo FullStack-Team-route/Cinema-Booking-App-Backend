@@ -17,6 +17,7 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import auditoriumRoutes from "./routes/auditoriumRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
+import genreRoutes from "./routes/genreRoutes.js"; // Import genreRoutes
 import chatbotRoutes from "./routes/chatbotRoutes.js";
 import {
   globalErrorHandler,
@@ -226,6 +227,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auditoriums", auditoriumRoutes);
 app.use("/api/slots", slotRoutes);
+app.use("/api/genres", genreRoutes); // Mount genreRoutes
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/payments", paymentRoutes);
 
