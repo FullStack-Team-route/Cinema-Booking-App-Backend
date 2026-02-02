@@ -657,6 +657,12 @@ export const searchMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -733,6 +739,12 @@ export const getMoviesByGenre = async (req: Request, res: Response) => {
       isActive: true,
     })
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -791,6 +803,12 @@ export const getMoviesByYear = async (req: Request, res: Response) => {
       isActive: true,
     })
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -830,6 +848,12 @@ export const getTopRatedMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -876,6 +900,12 @@ export const getMoviesByPerson = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -923,6 +953,12 @@ export const getFeaturedMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort({ rating: -1, createdAt: -1 })
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -982,6 +1018,12 @@ export const getComingSoonMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
@@ -1039,6 +1081,12 @@ export const getNowShowingMovies = async (req: Request, res: Response) => {
 
     const movies = await Movie.find(filter)
       .populate("auditoriums", "name type facilities location isActive")
+      .populate({
+        path: "slots",
+        match: { isActive: true },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
       .sort(sortOptions)
       .skip((+page - 1) * +limit)
       .limit(+limit);
