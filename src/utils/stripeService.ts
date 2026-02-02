@@ -513,7 +513,7 @@ export class StripeService {
           .populate("movieId", "title");
 
         if (booking) {
-          console.log(`[StripeService] ✅ Booking confirmed: ${booking.id}`);
+          console.log(`[StripeService] ✅ Booking confirmed: ${booking._id}`);
           // Send confirmation email
           if ((booking.userId as any)?.email) {
             console.log(
