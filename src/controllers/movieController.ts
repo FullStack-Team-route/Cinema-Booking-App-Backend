@@ -1421,3 +1421,57 @@ export const toggleFeaturedStatus = async (req: Request, res: Response) => {
     res.status(500).json({ statusMsg: "fail", error: err.message });
   }
 };
+
+// =============================
+// Get Slider Movies (Non-featured with active slots)
+// =============================
+export const getSliderMovies = async (req: Request, res: Response) => {
+  try {
+    const { limit = 10 } = req.query as any;
+
+    // Get today's date at the start of the day
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // Step 1: Find all active slots from today onwards and get unique movie IDs
+    const activeSlots = await Slot.find({
+      date: { $gte: now },
+      isActive: true,
+    }).distinct("movie");
+
+    if (!activeSlots || activeSlots.length === 0) {
+      return res.status(200).json({
+        statusMsg: "success",
+        movies: [],
+        message: "No movies with active slots found",
+      });
+    }
+
+    // Step 2: Find movies that:
+    // - Are in the activeSlots list
+    // - Are NOT featured
+    // - Are active
+    const movies = await Movie.find({
+      _id: { $in: activeSlots },
+      featured: { $ne: true },
+      isActive: true,
+    })
+      .populate({
+        path: "slots",
+        match: { isActive: true, date: { $gte: now } },
+        options: { sort: { date: 1, time: 1 } },
+        populate: { path: "auditorium", select: "name type" },
+      })
+      .sort({ releaseDate: -1 })
+      .limit(+limit);
+
+    res.status(200).json({
+      statusMsg: "success",
+      count: movies.length,
+      movies,
+    });
+  } catch (err: any) {
+    console.error("Error in getSliderMovies:", err);
+    res.status(500).json({ statusMsg: "fail", error: err.message });
+  }
+};

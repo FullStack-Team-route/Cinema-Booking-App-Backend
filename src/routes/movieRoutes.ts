@@ -20,6 +20,7 @@ import {
   getMoviesByDate,
   getSeatLayout,
   toggleFeaturedStatus,
+  getSliderMovies,
 } from "../controllers/movieController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { storage } from "../config/cloudinary.js";
@@ -105,5 +106,8 @@ router.get("/by-date", getMoviesByDate);
 
 // تخطيط المقاعد للحجز
 router.get("/seat-layout/:movieId/:slotId", getSeatLayout);
+
+// الأفلام للـ Home Main Slider (ليها مواعيد ومش featured)
+router.get("/slider", getSliderMovies);
 
 export default router;
