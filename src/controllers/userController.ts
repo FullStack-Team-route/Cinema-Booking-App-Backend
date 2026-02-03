@@ -527,7 +527,7 @@ export const forgotPassword = async (
     res.cookie("verification_token", verificationToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 10 * 60 * 1000, // 10 minutes (same as OTP expiry)
     });
 
