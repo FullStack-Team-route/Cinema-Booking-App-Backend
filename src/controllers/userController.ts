@@ -431,32 +431,48 @@ export const forgotPassword = async (
   res: Response,
   next: NextFunction,
 ) => {
+  console.log("========== FORGOT PASSWORD DEBUG ==========");
+  console.log(
+    "[FORGOT_PASSWORD] Request received at:",
+    new Date().toISOString(),
+  );
+  console.log("[FORGOT_PASSWORD] Request body:", JSON.stringify(req.body));
+  console.log("[FORGOT_PASSWORD] NODE_ENV:", process.env.NODE_ENV);
+
   try {
     const { email } = req.body;
 
     if (!email) {
+      console.log("[FORGOT_PASSWORD] ❌ No email provided");
       return res
         .status(400)
         .json({ statusMsg: "fail", message: "Email is required" });
     }
+    console.log("[FORGOT_PASSWORD] Email received:", email);
 
     // Check if user exists
+    console.log("[FORGOT_PASSWORD] Checking if user exists...");
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("[FORGOT_PASSWORD] ❌ User not found for email:", email);
       return res.status(404).json({
         statusMsg: "fail",
         message: "No account found with this email address",
       });
     }
+    console.log("[FORGOT_PASSWORD] ✅ User found:", user._id);
 
     // Rate limiting - prevent spam (max 3 OTP requests per hour)
+    console.log("[FORGOT_PASSWORD] Checking rate limits...");
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentOtps = await Otp.find({
       email,
       createdAt: { $gte: oneHourAgo },
     });
+    console.log("[FORGOT_PASSWORD] Recent OTPs count:", recentOtps.length);
 
     if (recentOtps.length >= 3) {
+      console.log("[FORGOT_PASSWORD] ❌ Rate limit exceeded");
       return res.status(429).json({
         statusMsg: "fail",
         message:
@@ -473,6 +489,7 @@ export const forgotPassword = async (
     });
 
     if (verifiedUnusedOtp) {
+      console.log("[FORGOT_PASSWORD] ❌ Verified unused OTP exists");
       return res.status(400).json({
         statusMsg: "fail",
         message:
@@ -491,6 +508,7 @@ export const forgotPassword = async (
     });
 
     if (recentValidOtp) {
+      console.log("[FORGOT_PASSWORD] ❌ Recent valid OTP exists, wait 2 min");
       return res.status(429).json({
         statusMsg: "fail",
         message:
@@ -499,43 +517,66 @@ export const forgotPassword = async (
     }
 
     // Generate OTP and verification token
+    console.log("[FORGOT_PASSWORD] Generating OTP...");
     const otp = generateOTP();
     const verificationToken = crypto.randomUUID();
+    console.log("[FORGOT_PASSWORD] OTP generated:", otp);
+    console.log("[FORGOT_PASSWORD] Verification token generated");
 
     // Save OTP to database (invalidate any existing unused OTPs for this email)
+    console.log("[FORGOT_PASSWORD] Invalidating old OTPs...");
     await Otp.updateMany({ email, used: false }, { used: true });
 
+    console.log("[FORGOT_PASSWORD] Saving new OTP to database...");
     await Otp.create({
       email,
       otp,
       verificationToken,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
+    console.log("[FORGOT_PASSWORD] ✅ OTP saved to database");
 
     // Send OTP email
+    console.log("[FORGOT_PASSWORD] Attempting to send OTP email...");
     try {
       await sendOtpEmail(email, otp);
-    } catch (emailError) {
-      console.error("Failed to send OTP email:", emailError);
+      console.log("[FORGOT_PASSWORD] ✅ OTP email sent successfully");
+    } catch (emailError: any) {
+      console.error("[FORGOT_PASSWORD] ❌ Failed to send OTP email:");
+      console.error("[FORGOT_PASSWORD] Error:", emailError.message);
+      console.error("[FORGOT_PASSWORD] Full error:", emailError);
       return res.status(500).json({
         statusMsg: "fail",
         message: "Failed to send OTP email. Please try again.",
+        debug:
+          process.env.NODE_ENV !== "production"
+            ? emailError.message
+            : undefined,
       });
     }
 
     // Set verification token in httpOnly cookie
+    console.log("[FORGOT_PASSWORD] Setting verification cookie...");
     res.cookie("verification_token", verificationToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 10 * 60 * 1000, // 10 minutes (same as OTP expiry)
     });
+    console.log("[FORGOT_PASSWORD] ✅ Cookie set");
+
+    console.log("[FORGOT_PASSWORD] ✅ SUCCESS - OTP process completed");
+    console.log("============================================");
 
     res.status(200).json({
       statusMsg: "success",
       message: "OTP sent to your email successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[FORGOT_PASSWORD] ❌ UNEXPECTED ERROR:");
+    console.error("[FORGOT_PASSWORD] Error:", error.message);
+    console.error("[FORGOT_PASSWORD] Stack:", error.stack);
+    console.log("============================================");
     next(error);
   }
 };

@@ -19,24 +19,42 @@ const createTransporter = () => {
 };
 
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
+  console.log("========== EMAIL SERVICE DEBUG ==========");
+  console.log("[EMAIL] Starting email send process...");
+  console.log("[EMAIL] To:", options.to);
+  console.log("[EMAIL] Subject:", options.subject);
+  console.log("[EMAIL] NODE_ENV:", process.env.NODE_ENV);
+
   try {
     // Validate configuration
+    console.log("[EMAIL] Checking GMAIL_USER...");
     if (!process.env.GMAIL_USER) {
+      console.error("[EMAIL] ERROR: GMAIL_USER is not configured!");
       throw new Error("GMAIL_USER is not configured. Set your Gmail address");
     }
+    console.log("[EMAIL] GMAIL_USER configured:", process.env.GMAIL_USER);
 
+    console.log("[EMAIL] Checking GMAIL_APP_PASSWORD...");
     if (!process.env.GMAIL_APP_PASSWORD) {
+      console.error("[EMAIL] ERROR: GMAIL_APP_PASSWORD is not configured!");
       throw new Error(
-        "GMAIL_APP_PASSWORD is not configured. Generate an App Password from Gmail"
+        "GMAIL_APP_PASSWORD is not configured. Generate an App Password from Gmail",
       );
     }
+    console.log(
+      "[EMAIL] GMAIL_APP_PASSWORD configured: ****" +
+        process.env.GMAIL_APP_PASSWORD?.slice(-4),
+    );
 
+    console.log("[EMAIL] Creating transporter...");
     const transporter = createTransporter();
+    console.log("[EMAIL] Transporter created successfully");
 
     const fromEmail =
       options.from ||
       process.env.EMAIL_FROM ||
       `Cinema Booking <${process.env.GMAIL_USER}>`;
+    console.log("[EMAIL] From email:", fromEmail);
 
     const mailOptions = {
       from: fromEmail,
@@ -44,22 +62,34 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
       subject: options.subject,
       html: options.html,
     };
+    console.log("[EMAIL] Mail options prepared, attempting to send...");
 
     const result = await transporter.sendMail(mailOptions);
 
-    console.log("Email sent successfully:", result.messageId || "Success");
+    console.log("[EMAIL] ✅ Email sent successfully!");
+    console.log("[EMAIL] Message ID:", result.messageId);
+    console.log("[EMAIL] Response:", result.response);
+    console.log("[EMAIL] Accepted:", result.accepted);
+    console.log("[EMAIL] Rejected:", result.rejected);
+    console.log("==========================================");
 
     // Close the transporter
     transporter.close();
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("[EMAIL] ❌ ERROR sending email:");
+    console.error("[EMAIL] Error name:", error.name);
+    console.error("[EMAIL] Error message:", error.message);
+    console.error("[EMAIL] Error code:", error.code);
+    console.error("[EMAIL] Error command:", error.command);
+    console.error("[EMAIL] Full error:", error);
+    console.log("==========================================");
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
 
 export const sendOtpEmail = async (
   email: string,
-  otp: string
+  otp: string,
 ): Promise<void> => {
   const html = `
     <!DOCTYPE html>
@@ -130,7 +160,7 @@ export const sendBookingConfirmation = async (
     seats: string[];
     totalPrice: number;
     bookingId: string;
-  }
+  },
 ): Promise<void> => {
   const { movieTitle, showtime, auditorium, seats, totalPrice, bookingId } =
     bookingDetails;
@@ -217,7 +247,7 @@ export const sendBookingCancellation = async (
     movieTitle: string;
     bookingId: string;
     refundAmount?: number;
-  }
+  },
 ): Promise<void> => {
   const { movieTitle, bookingId, refundAmount } = bookingDetails;
 
@@ -259,7 +289,7 @@ export const sendBookingCancellation = async (
           <div class="refund-info">
             <h4>Refund Information</h4>
             <p>A refund of <strong>$${refundAmount.toFixed(
-              2
+              2,
             )}</strong> has been processed and will appear in your original payment method within 3-5 business days.</p>
           </div>
           `
