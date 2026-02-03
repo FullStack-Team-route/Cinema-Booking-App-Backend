@@ -7,14 +7,29 @@ interface EmailOptions {
   from?: string;
 }
 
-// Create Gmail transporter
+// Create Gmail transporter with explicit settings for cloud hosting
 const createTransporter = () => {
+  console.log("[EMAIL] Creating transporter with explicit SMTP settings...");
+
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // Use SSL
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD, // App Password, not regular password
     },
+    // Timeout settings for cloud environments
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 60000, // 60 seconds
+    // Pool connections
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 3,
+    // Debug
+    logger: process.env.NODE_ENV !== "production",
+    debug: process.env.NODE_ENV !== "production",
   });
 };
 
