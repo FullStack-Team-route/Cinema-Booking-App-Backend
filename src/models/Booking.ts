@@ -7,6 +7,7 @@ export interface IBooking extends Document {
 
   slotId: string; // Added for seat management
   showtime: string;
+  showtimeDate: Date; // Actual date of the showtime
   auditorium: string;
   totalPrice: number;
   status: "pending" | "confirmed" | "cancelled" | "refunded";
@@ -30,6 +31,11 @@ const bookingSchema = new Schema<IBooking>(
     showtime: {
       type: String,
       required: true,
+    },
+
+    showtimeDate: {
+      type: Date,
+      required: false, // Optional for backward compatibility with old bookings
     },
 
     auditorium: {
@@ -61,7 +67,7 @@ const bookingSchema = new Schema<IBooking>(
 
     seats: [{ type: Schema.Types.Mixed }], // Array of seat objects
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const Booking = mongoose.model<IBooking>("Booking", bookingSchema);

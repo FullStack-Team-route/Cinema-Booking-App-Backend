@@ -17,24 +17,33 @@ const RATE_LIMIT_MAX = 20; // Max requests per window
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
 // Clean up expired rate limit entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (now > value.resetTime) {
-      rateLimitStore.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, value] of rateLimitStore.entries()) {
+      if (now > value.resetTime) {
+        rateLimitStore.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000,
+);
 
 // Check rate limit for an IP
-const checkRateLimit = (ip: string): { allowed: boolean; remaining: number; resetIn: number } => {
+const checkRateLimit = (
+  ip: string,
+): { allowed: boolean; remaining: number; resetIn: number } => {
   const now = Date.now();
   const entry = rateLimitStore.get(ip);
 
   if (!entry || now > entry.resetTime) {
     // First request or window expired
     rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetIn: RATE_LIMIT_WINDOW };
+    return {
+      allowed: true,
+      remaining: RATE_LIMIT_MAX - 1,
+      resetIn: RATE_LIMIT_WINDOW,
+    };
   }
 
   if (entry.count >= RATE_LIMIT_MAX) {
@@ -42,7 +51,11 @@ const checkRateLimit = (ip: string): { allowed: boolean; remaining: number; rese
   }
 
   entry.count++;
-  return { allowed: true, remaining: RATE_LIMIT_MAX - entry.count, resetIn: entry.resetTime - now };
+  return {
+    allowed: true,
+    remaining: RATE_LIMIT_MAX - entry.count,
+    resetIn: entry.resetTime - now,
+  };
 };
 
 // ============== CONVERSATION HISTORY ==============
@@ -62,54 +75,61 @@ const MAX_HISTORY_LENGTH = 10; // Keep last 10 messages
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
 // Clean up expired sessions every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, session] of conversationStore.entries()) {
-    if (now - session.lastActivity > SESSION_TIMEOUT) {
-      conversationStore.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, session] of conversationStore.entries()) {
+      if (now - session.lastActivity > SESSION_TIMEOUT) {
+        conversationStore.delete(key);
+      }
     }
-  }
-}, 10 * 60 * 1000);
+  },
+  10 * 60 * 1000,
+);
 
 // Get or create conversation session
 const getConversation = (sessionId: string): ConversationSession => {
   let session = conversationStore.get(sessionId);
-  
+
   if (!session || Date.now() - session.lastActivity > SESSION_TIMEOUT) {
     session = { messages: [], lastActivity: Date.now() };
     conversationStore.set(sessionId, session);
   }
-  
+
   return session;
 };
 
 // Add message to conversation
-const addToConversation = (sessionId: string, role: "user" | "assistant", content: string) => {
+const addToConversation = (
+  sessionId: string,
+  role: "user" | "assistant",
+  content: string,
+) => {
   const session = getConversation(sessionId);
   session.messages.push({ role, content, timestamp: Date.now() });
-  
+
   // Keep only last N messages
   if (session.messages.length > MAX_HISTORY_LENGTH) {
     session.messages = session.messages.slice(-MAX_HISTORY_LENGTH);
   }
-  
+
   session.lastActivity = Date.now();
 };
 
 // Format conversation history for prompt
 const formatConversationHistory = (sessionId: string): string => {
   const session = getConversation(sessionId);
-  
+
   if (session.messages.length === 0) {
     return "";
   }
-  
+
   let history = "\n---\nسجل المحادثة السابقة:\n";
   for (const msg of session.messages) {
     const prefix = msg.role === "user" ? "العميل" : "سينما بوت";
     history += `${prefix}: ${msg.content}\n`;
   }
-  
+
   return history;
 };
 
@@ -117,7 +137,7 @@ const formatConversationHistory = (sessionId: string): string => {
 export const clearConversation = async (req: Request, res: Response) => {
   const sessionId = req.body.sessionId || req.ip || "anonymous";
   conversationStore.delete(sessionId);
-  
+
   return res.status(200).json({
     statusMsg: "success",
     message: "تم مسح سجل المحادثة",
@@ -144,7 +164,10 @@ const SYSTEM_PROMPT = `أنت مساعد ذكي لموقع سينما لحجز �
 - اذكر اسم الفيلم والتقييم والتصنيف
 - اذكر مدة الفيلم
 - اذكر نبذة قصيرة عن القصة
-- اذكر مواعيد العرض إذا كانت متاحة`;
+- اذكر مواعيد العرض إذا كانت متاحة
+- إذا أبدى العميل رغبة في الحجز أو سأل عن المواعيد، يجب أن تضيف في نهاية ردك هذا الكود الخاص:
+[BOOK:اسم الفيلم|||MovieID|||SlotID]
+استبدل "اسم الفيلم" باسم الفيلم، "MovieID" بمعرف الفيلم، و "SlotID" بمعرف الموعد (إذا اختار العميل وقتاً محدداً). إذا لم يحدد وقتاً، اترك SlotID فارغاً هكذا: [BOOK:اسم الفيلم|||MovieID]. هذا الكود سيتحول لزر حجز. استخدم الفاصل ||| بدقة.`;
 
 // Format movies data for the AI context
 const formatMoviesContext = async () => {
@@ -157,9 +180,9 @@ const formatMoviesContext = async () => {
     const movies = await Movie.find({ isActive: true })
       .populate({
         path: "slots",
-        match: { 
+        match: {
           isActive: true,
-          date: { $gte: today }  // Filter: only today and future dates
+          date: { $gte: today }, // Filter: only today and future dates
         },
         populate: { path: "auditorium" },
       })
@@ -172,7 +195,7 @@ const formatMoviesContext = async () => {
     let context = "قائمة الأفلام المتاحة:\n\n";
 
     for (const movie of movies) {
-      context += `🎬 ${movie.title}\n`;
+      context += `🎬 ${movie.title} (ID: ${movie._id})\n`;
       context += `   - التصنيف: ${(movie.genres as string[])?.join(", ") || "غير محدد"}\n`;
       context += `   - التقييم: ${movie.rating || "غير محدد"}/10\n`;
       context += `   - المدة: ${movie.duration} دقيقة\n`;
@@ -209,7 +232,24 @@ const formatMoviesContext = async () => {
             month: "long",
             day: "numeric",
           });
-          const timeStr = `${slot.time} ${slot.ampm}`;
+          // Convert time to 12-hour format safely
+          let formattedTime = slot.time;
+          if (slot.time.includes(":")) {
+            const [hours, minutes] = slot.time.split(":").map(Number);
+            if (!isNaN(hours)) {
+              const period = hours >= 12 ? "PM" : "AM";
+              const hours12 = hours % 12 || 12;
+              formattedTime = `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
+            } else {
+              // Fallback if already formatted or invalid, append ampm if generic
+              formattedTime = `${slot.time} ${slot.ampm}`;
+            }
+          } else {
+            formattedTime = `${slot.time} ${slot.ampm}`;
+          }
+
+          // Append Slot ID to the time string so the AI knows it
+          const timeStr = `${formattedTime} {ID: ${slot._id}}`;
           if (!groupedSlots[dateStr]) {
             groupedSlots[dateStr] = [];
           }
@@ -235,7 +275,7 @@ const formatMoviesContext = async () => {
 export const handleChat = async (req: Request, res: Response) => {
   try {
     const { message, sessionId: clientSessionId } = req.body;
-    
+
     // Get client IP and session ID for rate limiting and history
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
     const sessionId = clientSessionId || clientIp;

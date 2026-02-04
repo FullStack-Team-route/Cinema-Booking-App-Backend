@@ -107,6 +107,7 @@ export const createBooking = async (req: Request, res: Response) => {
       customer,
       slotId,
       showtime: `${foundSlot.time} ${foundSlot.ampm}`,
+      showtimeDate: foundSlot.date, // Save the actual showtime date
       auditorium: auditoriumName,
       totalPrice,
       status: "pending" as const,
@@ -303,10 +304,61 @@ export const getUserBookings = async (req: Request, res: Response) => {
       .limit(Number(limit))
       .lean();
 
+    // Get all unique slotIds from bookings
+    const slotIds = [
+      ...new Set(bookings.map((b: any) => b.slotId).filter(Boolean)),
+    ];
+
+    // Fetch all slots at once for efficiency (for old bookings that don't have showtimeDate)
+    const slots = await Slot.find({ _id: { $in: slotIds } })
+      .populate("auditorium", "name")
+      .lean();
+
+    // Create a map for quick slot lookup
+    const slotMap = new Map(
+      slots.map((slot: any) => [slot._id.toString(), slot]),
+    );
+
+    // Format bookings to include showtime date
+    const formattedBookings = bookings.map((booking: any) => {
+      const slot = slotMap.get(booking.slotId);
+
+      // Use booking.showtimeDate if available (new bookings), otherwise try to get from slot (old bookings)
+      const showtimeDate = booking.showtimeDate || slot?.date || null;
+
+      // Format the showtime with date
+      let showtimeFormatted = booking.showtime;
+      if (showtimeDate) {
+        const dateStr = new Date(showtimeDate).toLocaleDateString("en-US", {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+        const timeStr = slot ? `${slot.time} ${slot.ampm}` : booking.showtime;
+        showtimeFormatted = `${dateStr} at ${timeStr}`;
+      }
+
+      return {
+        ...booking,
+        showtimeDate,
+        showtimeFormatted,
+        auditoriumName: (slot?.auditorium as any)?.name || booking.auditorium,
+        slotDetails: slot
+          ? {
+              date: slot.date,
+              time: slot.time,
+              ampm: slot.ampm,
+              auditorium: (slot.auditorium as any)?.name,
+            }
+          : null,
+      };
+    });
+
     return res.status(200).json({
       statusMsg: "success",
       data: {
-        bookings,
+        bookings: formattedBookings,
 
         page: Number(page),
         limit: Number(limit),
