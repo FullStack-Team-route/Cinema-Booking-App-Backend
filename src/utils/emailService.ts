@@ -7,29 +7,32 @@ interface EmailOptions {
   from?: string;
 }
 
-// Create Zoho Mail transporter with explicit settings for cloud hosting
+// Create Zoho Mail transporter
 const createTransporter = () => {
   console.log("[EMAIL] Creating Zoho Mail transporter...");
 
+  // Try smtp.zoho.eu (EU Data Center) - often resolves timeouts for some accounts
+  // If this fails, we can try smtp.zoho.com with port 465 again but with different options
   return nodemailer.createTransport({
-    host: "smtp.zoho.com", // Use smtp.zoho.eu for EU region
-    port: 465,
-    secure: true, // Use SSL
+    host: "smtp.zoho.eu", // Changed from .com to .eu to test region
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
       user: process.env.ZOHO_USER,
-      pass: process.env.ZOHO_APP_PASSWORD, // App-Specific Password from Zoho
+      pass: process.env.ZOHO_APP_PASSWORD,
     },
-    // Timeout settings for cloud environments
-    connectionTimeout: 60000, // 60 seconds
-    greetingTimeout: 30000, // 30 seconds
-    socketTimeout: 60000, // 60 seconds
-    // Pool connections
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
-    // Debug
-    logger: process.env.NODE_ENV !== "production",
-    debug: process.env.NODE_ENV !== "production",
+    tls: {
+      ciphers: "SSLv3",
+      rejectUnauthorized: false, // Help with self-signed certs issues in some cloud envs
+    },
+    // Extended timeouts
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+    // Debug logging
+    logger: true,
+    debug: true,
   });
 };
 
