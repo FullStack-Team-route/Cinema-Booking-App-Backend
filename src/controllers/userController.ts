@@ -717,6 +717,51 @@ export const resetPassword = async (
 };
 
 // =============================
+// Check Reset Session
+// =============================
+export const checkResetSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const verificationToken = req.cookies.verification_token;
+
+    if (!verificationToken) {
+      return res.status(401).json({
+        statusMsg: "fail",
+        valid: false,
+        message: "No verification session found.",
+      });
+    }
+
+    // Check if there's a verified and unused OTP for this token
+    const otpRecord = await Otp.findOne({
+      verificationToken,
+      verified: true,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!otpRecord) {
+      return res.status(401).json({
+        statusMsg: "fail",
+        valid: false,
+        message: "No valid reset session. Please verify your OTP first.",
+      });
+    }
+
+    res.status(200).json({
+      statusMsg: "success",
+      valid: true,
+      message: "Reset session is valid.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =============================
 // Admin User Management
 // =============================
 

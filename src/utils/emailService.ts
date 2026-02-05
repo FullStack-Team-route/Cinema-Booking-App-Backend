@@ -7,17 +7,17 @@ interface EmailOptions {
   from?: string;
 }
 
-// Create Gmail transporter with explicit settings for cloud hosting
+// Create Zoho Mail transporter with explicit settings for cloud hosting
 const createTransporter = () => {
-  console.log("[EMAIL] Creating transporter with explicit SMTP settings...");
+  console.log("[EMAIL] Creating Zoho Mail transporter...");
 
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    host: "smtp.zoho.com", // Use smtp.zoho.eu for EU region
     port: 465,
     secure: true, // Use SSL
     auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD, // App Password, not regular password
+      user: process.env.ZOHO_USER,
+      pass: process.env.ZOHO_APP_PASSWORD, // App-Specific Password from Zoho
     },
     // Timeout settings for cloud environments
     connectionTimeout: 60000, // 60 seconds
@@ -42,23 +42,25 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 
   try {
     // Validate configuration
-    console.log("[EMAIL] Checking GMAIL_USER...");
-    if (!process.env.GMAIL_USER) {
-      console.error("[EMAIL] ERROR: GMAIL_USER is not configured!");
-      throw new Error("GMAIL_USER is not configured. Set your Gmail address");
-    }
-    console.log("[EMAIL] GMAIL_USER configured:", process.env.GMAIL_USER);
-
-    console.log("[EMAIL] Checking GMAIL_APP_PASSWORD...");
-    if (!process.env.GMAIL_APP_PASSWORD) {
-      console.error("[EMAIL] ERROR: GMAIL_APP_PASSWORD is not configured!");
+    console.log("[EMAIL] Checking ZOHO_USER...");
+    if (!process.env.ZOHO_USER) {
+      console.error("[EMAIL] ERROR: ZOHO_USER is not configured!");
       throw new Error(
-        "GMAIL_APP_PASSWORD is not configured. Generate an App Password from Gmail",
+        "ZOHO_USER is not configured. Set your Zoho email address",
+      );
+    }
+    console.log("[EMAIL] ZOHO_USER configured:", process.env.ZOHO_USER);
+
+    console.log("[EMAIL] Checking ZOHO_APP_PASSWORD...");
+    if (!process.env.ZOHO_APP_PASSWORD) {
+      console.error("[EMAIL] ERROR: ZOHO_APP_PASSWORD is not configured!");
+      throw new Error(
+        "ZOHO_APP_PASSWORD is not configured. Generate an App Password from Zoho",
       );
     }
     console.log(
-      "[EMAIL] GMAIL_APP_PASSWORD configured: ****" +
-        process.env.GMAIL_APP_PASSWORD?.slice(-4),
+      "[EMAIL] ZOHO_APP_PASSWORD configured: ****" +
+        process.env.ZOHO_APP_PASSWORD?.slice(-4),
     );
 
     console.log("[EMAIL] Creating transporter...");
@@ -68,7 +70,7 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
     const fromEmail =
       options.from ||
       process.env.EMAIL_FROM ||
-      `Cinema Booking <${process.env.GMAIL_USER}>`;
+      `Cinema Booking <${process.env.ZOHO_USER}>`;
     console.log("[EMAIL] From email:", fromEmail);
 
     const mailOptions = {

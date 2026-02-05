@@ -16,6 +16,7 @@ import {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  checkResetSession,
   uploadUserProfileImage,
 } from "../controllers/userController.js";
 import { uploadProfileImage } from "../middlewares/uploadMiddleware.js";
@@ -82,6 +83,8 @@ router.get("/users/stats", protect, adminOnly, getUsersStats);
 router.post("/forgot-password", forgotPassword);
 
 router.post("/verify-otp", verifyOtp);
+
+router.get("/check-reset-session", checkResetSession);
 
 router.post("/reset-password", validateResetPassword, resetPassword);
 
