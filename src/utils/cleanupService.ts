@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Booking from "../models/Booking.js";
 import { Slot } from "../models/Slot.js";
 
@@ -16,6 +17,11 @@ export const startCleanupJob = () => {
   );
 
   const cleanupTask = async () => {
+    if (mongoose.connection.readyState !== 1) {
+      console.warn("[Cleanup] ⚠️ DB not connected, skipping cleanup.");
+      return;
+    }
+
     try {
       // Find bookings pending for more than 10 minutes
       const expirationTime = new Date(Date.now() - EXPIRATION_MS);

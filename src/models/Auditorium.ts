@@ -28,7 +28,6 @@ const AuditoriumSchema = new mongoose.Schema<IAuditorium>(
 );
 
 // Indexes
-AuditoriumSchema.index({ name: 1 });
 AuditoriumSchema.index({ type: 1 });
 AuditoriumSchema.index({ isActive: 1 });
 
