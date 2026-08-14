@@ -3,11 +3,11 @@
 ## Endpoint: GET /api/admin/dashboard-stats
 
 ### Description
-يحصل على إحصائيات شاملة للوحة تحكم الإدارة تشمل الحجوزات، الإيرادات، المستخدمين، والأفلام مع تحليلات مفصلة.
+Fetches comprehensive admin dashboard statistics including bookings, revenue, users, and movies along with detailed analytics.
 
 ### Authentication
-- يتطلب **JWT Token** في الـ Authorization header
-- يتطلب صلاحيات **Admin** فقط
+- Requires **JWT Token** in the Authorization header.
+- Requires **Admin** privileges.
 
 ### Request Headers
 ```
@@ -176,60 +176,55 @@ Content-Type: application/json
 }
 ```
 
-## إحصائيات مفصلة
+## Detailed Statistics
 
-### 1. الإحصائيات الأساسية
-- **totalBookings**: إجمالي عدد الحجوزات في النظام
-- **totalRevenue**: إجمالي الإيرادات من الحجوزات المؤكدة فقط
-- **totalUsers**: إجمالي عدد المستخدمين المسجلين
-- **totalMovies**: إجمالي عدد الأفلام في النظام
+### 1. Basic Statistics
+- **totalBookings**: Total number of bookings in the system.
+- **totalRevenue**: Total revenue from confirmed bookings only.
+- **totalUsers**: Total number of registered users.
+- **totalMovies**: Total number of movies in the system.
 
-### 2. تحليل الحجوزات
-- **bookingsByStatus**: توزيع الحجوزات حسب الحالة
-  - `confirmed`: حجوزات مكتملة ومدفوعة
-  - `pending`: حجوزات في انتظار التأكيد
-  - `cancelled`: حجوزات ملغاة
-  - `refunded`: حجوزات مستردة
-- **recentBookingsCount**: عدد الحجوزات في آخر 30 يوم
-- **recentBookings**: آخر 10 حجوزات في آخر 7 أيام مع تفاصيل مختصرة
+### 2. Booking Analytics
+- **bookingsByStatus**: Distribution of bookings by status.
+  - `confirmed`: Completed and paid bookings.
+  - `pending`: Bookings awaiting confirmation.
+  - `cancelled`: Cancelled bookings.
+  - `refunded`: Refunded bookings.
+- **recentBookingsCount**: Number of bookings in the last 30 days.
+- **recentBookings**: Last 10 bookings in the last 7 days with brief details.
 
-### 3. تحليل المستخدمين
-- **newUsers.last7Days**: مستخدمين جدد في آخر 7 أيام
-- **newUsers.last30Days**: مستخدمين جدد في آخر 30 يوم
-- **activeUsersCount**: مستخدمين نشطين (قاموا بحجوزات في آخر 30 يوم)
-- **registrationTrends**: اتجاهات التسجيل الشهرية لآخر 12 شهر
+### 3. User Analytics
+- **newUsers.last7Days**: New users in the last 7 days.
+- **newUsers.last30Days**: New users in the last 30 days.
+- **activeUsersCount**: Active users (who made bookings in the last 30 days).
+- **registrationTrends**: Monthly registration trends for the last 12 months.
 
-### 4. تحليل الحجوزات (Booking Analytics)
-- **bookingAnalytics.averageBookingValue**: متوسط قيمة الحجز للحجوزات المؤكدة
-- **bookingAnalytics.totalSeatsBooked**: إجمالي عدد المقاعد المحجوزة
-- **bookingAnalytics.peakBookingTimes**: توزيع الحجوزات حسب ساعات اليوم
-- **bookingAnalytics.occupancyRateByShowtime**: معدل الإشغال لأكثر 10 أوقات عرض شعبية
+### 4. Detailed Booking Analytics
+- **bookingAnalytics.averageBookingValue**: Average value for confirmed bookings.
+- **bookingAnalytics.totalSeatsBooked**: Total number of booked seats.
+- **bookingAnalytics.peakBookingTimes**: Distribution of bookings by hours of the day.
+- **bookingAnalytics.occupancyRateByShowtime**: Occupancy rate for the top 10 most popular showtimes.
 
-### 5. إحصائيات الأفلام الأكثر شعبية (Top Movies Analytics)
-- **topMoviesAnalytics.mostBookedMovies**: الأفلام الأكثر حجزاً (عدد الحجوزات)
-- **topMoviesAnalytics.moviesByRevenue**: الأفلام حسب الإيرادات المولدة
-- **topMoviesAnalytics.moviesByOccupancyRate**: الأفلام حسب معدل الإشغال
+### 5. Top Movies Analytics
+- **topMoviesAnalytics.mostBookedMovies**: Most booked movies (by booking count).
+- **topMoviesAnalytics.moviesByRevenue**: Movies by generated revenue.
+- **topMoviesAnalytics.moviesByOccupancyRate**: Movies by occupancy rate.
 
-### 6. تحليل الإيرادات (Revenue Analytics)
-- **revenueAnalytics.dailyRevenue**: الإيرادات اليومية لآخر 30 يوم
-- **revenueAnalytics.weeklyRevenue**: الإيرادات الأسبوعية لآخر 12 أسبوع
-- **revenueAnalytics.monthlyRevenue**: الإيرادات الشهرية لآخر 12 شهر
-- **revenueAnalytics.revenueTrends**: اتجاهات الإيرادات اليومية لآخر 90 يوم
+### 6. Revenue Analytics
+- **revenueAnalytics.dailyRevenue**: Daily revenue for the last 30 days.
+- **revenueAnalytics.weeklyRevenue**: Weekly revenue for the last 12 weeks.
+- **revenueAnalytics.monthlyRevenue**: Monthly revenue for the last 12 months.
+- **revenueAnalytics.revenueTrends**: Daily revenue trends for the last 90 days.
 
-### 7. تحليل تصنيفات الأفلام (Movie Genre Analytics)
-- **movieGenreAnalytics.genrePerformance**: أداء كل تصنيف فيلم (الإيرادات، الحجوزات، المقاعد، عدد الأفلام)
+### 7. Movie Genre Analytics
+- **movieGenreAnalytics.genrePerformance**: Performance of each movie genre (Revenue, Bookings, Seats, Movie count).
 
-### 8. النشاط الحديث (Recent Activity)
-- **recentActivity.recentBookings**: آخر 10 حجوزات في آخر 7 أيام مع تفاصيل العميل والفيلم
-- **recentActivity.recentUserRegistrations**: آخر 10 مستخدمين مسجلين مع الاسم والبريد والدور
-- **recentActivity.recentMovieAdditions**: آخر 10 أفلام مضافة مع العنوان والتصنيف والتقييم
+### 8. Recent Activity
+- **recentActivity.recentBookings**: Last 10 bookings in the last 7 days with customer and movie details.
+- **recentActivity.recentUserRegistrations**: Last 10 registered users with name, email, and role.
+- **recentActivity.recentMovieAdditions**: Last 10 added movies with title, genre, and rating.
 
-### 4. نشاط حديث (Recent Activity)
-- **recentActivity.recentBookings**: آخر 10 حجوزات في آخر 7 أيام
-- **recentActivity.recentUserRegistrations**: آخر 10 مستخدمين مسجلين
-- **recentActivity.recentMovieAdditions**: آخر 10 أفلام مضافة
-
-## مثال على الاستخدام
+## Usage Example
 
 ### JavaScript (Frontend)
 ```javascript
@@ -248,14 +243,14 @@ const fetchDashboardStats = async () => {
     if (data.statusMsg === 'success') {
       const stats = data.data;
 
-      // عرض الإحصائيات
-      console.log('إجمالي الحجوزات:', stats.totalBookings);
-      console.log('إجمالي الإيرادات:', stats.totalRevenue);
-      console.log('حجوزات مؤكدة:', stats.bookingsByStatus.confirmed);
-      console.log('مستخدمين جدد هذا الأسبوع:', stats.userAnalytics.newUsers.last7Days);
+      // Display stats
+      console.log('Total Bookings:', stats.totalBookings);
+      console.log('Total Revenue:', stats.totalRevenue);
+      console.log('Confirmed Bookings:', stats.bookingsByStatus.confirmed);
+      console.log('New Users this week:', stats.userAnalytics.newUsers.last7Days);
     }
   } catch (error) {
-    console.error('خطأ في جلب الإحصائيات:', error);
+    console.error('Error fetching statistics:', error);
   }
 };
 ```
@@ -269,25 +264,25 @@ Headers:
   Content-Type: application/json
 ```
 
-## أداء وتحسينات
+## Performance and Optimizations
 
-### Indexes المستخدمة
-- `User.createdAt` - للاستعلامات الزمنية
-- `Booking.createdAt` - للحجوزات الأخيرة
-- `Booking.status` - للتجميع حسب الحالة
-- `Booking.userId` - للمستخدمين النشطين
+### Used Indexes
+- `User.createdAt` - For temporal queries.
+- `Booking.createdAt` - For recent bookings.
+- `Booking.status` - For aggregation by status.
+- `Booking.userId` - For active users.
 
-### تحسينات الأداء
-- جميع الاستعلامات تعمل بشكل متوازي باستخدام `Promise.all`
-- استخدام `lean()` للاستعلامات غير المعدلة
-- تجميع البيانات باستخدام MongoDB Aggregation Pipeline
+### Performance Improvements
+- All queries run in parallel using `Promise.all`.
+- Use of `lean()` for read-only queries.
+- Data aggregation using MongoDB Aggregation Pipeline.
 
-### إضافات مستقبلية
-- إضافة caching بـ Redis لتقليل وقت الاستجابة
-- إضافة فلترة زمنية مخصصة (أسبوع، شهر، سنة)
-- إضافة إحصائيات تفصيلية للأفلام الأكثر مشاهدة
+### Future Enhancements
+- Add Redis caching to reduce response time.
+- Add custom temporal filtering (week, month, year).
+- Add detailed statistics for the most viewed movies.
 
-## خطوط الخطأ المحتملة
+## Potential Error Codes
 
 ### 401 Unauthorized
 ```json
@@ -295,7 +290,7 @@ Headers:
   "message": "Not authorized"
 }
 ```
-**السبب:** عدم وجود JWT token أو token غير صحيح
+**Cause:** Missing JWT token or invalid token.
 
 ### 403 Forbidden
 ```json
@@ -303,7 +298,7 @@ Headers:
   "message": "Access denied - Admin role required"
 }
 ```
-**السبب:** المستخدم ليس admin
+**Cause:** User is not an admin.
 
 ### 500 Internal Server Error
 ```json
@@ -311,23 +306,23 @@ Headers:
   "message": "Server error"
 }
 ```
-**السبب:** خطأ في قاعدة البيانات أو مشكلة في السيرفر
+**Cause:** Database error or server issue.
 
-## ملاحظات مهمة
+## Important Notes
 
-1. **الإيرادات**: تحسب فقط من الحجوزات المؤكدة (`status: 'confirmed'`)
-2. **المستخدمين النشطين**: يُعتبر المستخدم نشط إذا قام بحجز في آخر 30 يوم
-3. **الأرقام الزمنية**: تستخدم التوقيت المحلي للخادم
-4. **الأداء**: مع البيانات الكبيرة، قد يستغرق الاستعلام عدة ثوان
+1. **Revenue**: Calculated only from confirmed bookings (`status: 'confirmed'`).
+2. **Active Users**: A user is considered active if they made a booking in the last 30 days.
+3. **Temporal Values**: Uses the server's local time.
+4. **Performance**: With large datasets, the query might take a few seconds.
 
-## تطوير وصيانة
+## Development and Maintenance
 
-لإضافة إحصائيات جديدة:
-1. أضف الاستعلام في قسم `Promise.all`
-2. أضف النتيجة في object `stats`
-3. حدث التوثيق هذا
+To add new statistics:
+1. Add the query to the `Promise.all` section.
+2. Add the result to the `stats` object.
+3. Update this documentation.
 
-لتحسين الأداء:
-1. أضف indexes جديدة حسب الحاجة
-2. استخدم caching للاستعلامات الثابتة
-3. راقب أداء قاعدة البيانات بانتظام
+To improve performance:
+1. Add new indexes as needed.
+2. Use caching for static queries.
+3. Monitor database performance regularly.

@@ -1,6 +1,6 @@
 # 🎬 Cinema Booking System
 
-> **نظام شامل لحجز تذاكر السينما مع لوحة إدارة متقدمة**
+> **A comprehensive cinema ticket booking system with an advanced admin dashboard**
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7+-blue.svg)](https://www.mongodb.com/)
@@ -9,111 +9,281 @@
 [![Stripe](https://img.shields.io/badge/Stripe-Payments-635bff.svg)](https://stripe.com/)
 [![JWT](https://img.shields.io/badge/JWT-Authentication-000000.svg)](https://jwt.io/)
 
-## 📋 نظرة عامة
+## 1. About the Project
 
-نظام شامل لحجز تذاكر السينما مبني باستخدام **MERN Stack** مع التركيز على الأمان والأداء العالي. يوفر تجربة متكاملة للمستخدمين والإدارة مع لوحة تحكم تحليلية متقدمة.
+The Cinema Booking System API is a robust, scalable backend engineered to power a modern movie theater platform. It handles the complete lifecycle of cinema operations, from user authentication and dynamic movie cataloging to complex seat-level reservations and secure payment processing.
 
-## ✨ المميزات الرئيسية
+Designed for high performance and security, this project abstracts the complexities of concurrency in seat booking, payment fulfillment, and media management. Based on the current configurations (clean TypeScript setup, active migrations, and integration of Stripe/Cloudinary), the project appears to be a highly-developed MVP nearing production readiness.
 
-### 👥 نظام المصادقة والمستخدمين
+## 2. Features
 
-- ✅ تسجيل وتسجيل دخول آمن مع JWT
-- ✅ إدارة البروفايل والتحقق من البريد الإلكتروني
-- ✅ إعادة تعيين كلمة المرور مع OTP
-- ✅ نظام أدوار (User/Admin)
-- ✅ Rate Limiting للحماية من الهجمات
+### Core Features
+*   **Authentication & User Management:** JWT-based stateless authentication, role-based access control (Admin/User), and secure OTP-based password recovery via email.
+*   **Movie Cataloging & Discovery:** Advanced querying capabilities for movies (by genre, release year, cast/crew, now showing, coming soon) with autocomplete search.
+*   **Cinema & Showtime Management (Admin):** Create and manage auditoriums (Standard, Premium, IMAX, VIP), allocate movies to specific halls, and generate showtime slots with dynamic seat types and pricing.
+*   **Concurrency-Safe Booking Engine:** Seat-level reservation system that tracks available/booked seats per slot and prevents double-booking. Includes a background cleanup job to release unpaid pending seats.
+*   **Secure Payment Processing:** Integration with Stripe for handling Checkout Sessions, Payment Intents, refunds, and real-time payment confirmation via Webhooks.
 
-### 🎭 إدارة الأفلام
+### Secondary / Nice-to-Have Features
+*   **AI Chatbot Integration:** Embedded Google Generative AI helper to assist users with queries.
+*   **Media Management:** Direct integration with Cloudinary for handling and optimizing movie posters, banners, and user avatars.
+*   **Admin Dashboard Stats:** Aggregated data endpoints for admins to track users, payments, and system health.
 
-- ✅ CRUD كامل للأفلام مع رفع الصور
-- ✅ إدارة التصنيفات والعروض والقاعات
-- ✅ بحث وفلترة متقدمة (نوع، تصنيف، سنة، تقييم، مخرج، ممثل)
-- ✅ دعم المقاطع الدعائية والتريلرز
-- ✅ إدارة حالة الفيلم (معروض، قادم قريباً، مميز)
-
-### 🎫 نظام الحجوزات المتقدم
-
-- ✅ حجز المقاعد التفاعلي مع أنواع مختلفة (VIP، Regular، Premium)
-- ✅ أسعار مرنة لكل نوع كرسي
-- ✅ دفع آمن عبر Stripe
-- ✅ تأكيد فوري للحجز والدفع
-- ✅ إدارة حالة الحجز (معلق، مؤكد، ملغي، مسترد)
-- ✅ منع الازدواج في حجز المقاعد
-- ✅ إرسال تأكيدات عبر البريد الإلكتروني
-
-### 📊 لوحة الإدارة التحليلية
-
-- ✅ إحصائيات شاملة (الحجوزات، الإيرادات، المستخدمين، الأفلام)
-- ✅ تحليل المستخدمين (جدد، نشطين، اتجاهات التسجيل)
-- ✅ تحليل الحجوزات (متوسط القيمة، المقاعد المحجوزة، أوقات الذروة)
-- ✅ تحليل الإيرادات (يومي، أسبوعي، شهري، اتجاهات)
-- ✅ تحليل الأفلام (الأكثر حجزاً، الإيرادات، معدل الإشغال)
-- ✅ تحليل التصنيفات (أداء كل نوع فيلم)
-- ✅ النشاط الحديث (حجوزات، مستخدمين، أفلام جديدة)
-
-### 🔒 الأمان والأداء
-
-- ✅ JWT Authentication مع HttpOnly Cookies
-- ✅ Rate Limiting لجميع الطلبات
-- ✅ Input Validation و Sanitization
-- ✅ CORS Configuration
-- ✅ Protection من SQL Injection و XSS
-- ✅ Encryption للبيانات الحساسة
-
-### 📧 نظام الإشعارات
-
-- ✅ إرسال OTP للتحقق من البريد الإلكتروني
-- ✅ تأكيدات الحجز والدفع
-- ✅ إشعارات إلغاء الحجز
-- ✅ Templates جميلة ومتجاوبة
-
-## 🛠️ التقنيات المستخدمة
+## 3. Tech Stack
 
 ### Backend
+*   **Runtime:** Node.js (v24 types) with TypeScript (v5.9.3)
+*   **Framework:** Express.js (v5.1.0)
+*   **Database:** MongoDB
+*   **ORM:** Mongoose (v9.0.0)
+*   **Authentication:** `jsonwebtoken` (JWT), `bcrypt` (Password Hashing)
+*   **File Uploads:** `multer`, `cloudinary`, `multer-storage-cloudinary`
+*   **Payments:** `stripe` (v20.0.0)
+*   **Email Services:** `nodemailer`
+*   **Security:** `helmet`, `cors`, `express-rate-limit`, Custom XSS & NoSQL injection sanitizers
+*   **AI Integration:** `@google/generative-ai`
 
-- **Node.js** - Runtime Environment
-- **Express.js** - Web Framework
-- **MongoDB** - NoSQL Database
-- **Mongoose** - ODM for MongoDB
-- **TypeScript** - Type Safety
-- **JWT** - Authentication
-- **Bcrypt** - Password Hashing
-- **Stripe** - Payment Processing
-- **Nodemailer** - Email Service
-- **Multer** - File Upload
-- **Express Rate Limit** - Rate Limiting
-- **Express Validator** - Input Validation
+### DevOps/Infra
+*   **Development Tools:** `nodemon`, `tsx` for direct TypeScript execution.
+*   **Build Tool:** `tsc` (TypeScript Compiler)
 
-### DevOps & Tools
+## 4. System Architecture
 
-- **Nodemon** - Development Server
-- **TSX** - TypeScript Execution
-- **Dotenv** - Environment Variables
-- **CORS** - Cross-Origin Resource Sharing
+The backend follows a standard **Modular Monolith REST API** architecture.
 
-## 🚀 البدء السريع
+### Layering Pattern
+The application strictly follows a **Route → Middleware → Controller → Model** pattern.
+*   **Routes:** Map HTTP endpoints to specific controller methods.
+*   **Middlewares:** Handle cross-cutting concerns (Auth validation, Admin RBAC, File parsing, Input Validation).
+*   **Controllers:** Act as "fat controllers", containing the core business logic, querying the models, and formulating HTTP responses.
+*   **Models (Mongoose):** Define schemas, handle database constraints, and contain minor data-level virtuals/methods (e.g., checking if a movie is currently showing).
+*   **Utils/Helpers:** Abstract 3rd-party service logic (`stripeService`, `emailService`, `cleanupService`).
 
-### متطلبات النظام
+### Request Lifecycle
+`Client Request` → `Global Security Middleware (Rate Limits, Helmet, Sanitization)` → `Route Definition` → `Auth/Role Middleware (protect, adminOnly)` → `Controller Logic` → `Mongoose Model` → `MongoDB` → `JSON Response`
 
+```mermaid
+flowchart TD
+    Client[Client Request] --> Security[Security Middlewares\nHelmet / Rate Limit / CORS]
+    Security --> BodyParser[Body Parsers & Sanitization]
+    BodyParser --> Router[Express Router]
+    
+    Router --> AuthMid[Auth Middleware\nVerify JWT / RBAC]
+    AuthMid --> Controller[Controller\nBusiness Logic]
+    Controller --> Services[Utils / External Services\nStripe / Mail / AI]
+    Controller --> Models[Mongoose Models]
+    Models --> DB[(MongoDB)]
+    
+    DB --> Models
+    Services --> Controller
+    Models --> Controller
+    Controller --> Response[JSON Response]
+```
+
+## 5. Database Schema & ERD
+
+The database utilizes MongoDB. Below is the relational mapping of the collections based on the Mongoose Schemas:
+
+*   **Users:** Stores credentials, roles (`admin`, `user`), status, and profile info.
+*   **Movies:** Stores rich metadata, media (poster, gallery, trailers), cast arrays, and categorized arrays.
+*   **Auditoriums:** Physical cinema halls with specific types (IMAX, VIP) and capacities.
+*   **Slots:** The junction of a Movie, Auditorium, and Time. Holds the active state of seats (`bookedSeats`, `availableSeats`).
+*   **Bookings:** Tracks user reservations, locking specific seats in a specific Slot. Has statuses (`pending`, `confirmed`, `cancelled`).
+*   **Payments:** Records Stripe transactions, linked directly to a Booking and User.
+*   **Genres:** Lookup table for movie categorization.
+
+```mermaid
+erDiagram
+    USER ||--o{ BOOKING : makes
+    USER ||--o{ PAYMENT : processes
+    MOVIE ||--o{ SLOT : scheduled_as
+    MOVIE }o--o{ AUDITORIUM : screens_in
+    AUDITORIUM ||--o{ SLOT : hosts
+    SLOT ||--o{ BOOKING : contains
+    BOOKING ||--o| PAYMENT : paid_via
+
+    USER {
+        ObjectId _id
+        string username
+        string email
+        string password
+        string role
+        string status
+    }
+    
+    MOVIE {
+        ObjectId _id
+        string title
+        string description
+        number duration
+        date releaseDate
+        array genres
+        array cast
+    }
+
+    AUDITORIUM {
+        ObjectId _id
+        string name
+        string type
+        array facilities
+    }
+
+    SLOT {
+        ObjectId _id
+        ObjectId movie_id
+        ObjectId auditorium_id
+        date date
+        string time
+        array seatTypes
+        array bookedSeats
+    }
+
+    BOOKING {
+        ObjectId _id
+        ObjectId user_id
+        ObjectId movie_id
+        string slotId
+        array seats
+        number totalPrice
+        string status
+    }
+
+    PAYMENT {
+        ObjectId _id
+        ObjectId bookingId
+        ObjectId userId
+        number amount
+        string stripePaymentIntentId
+        string status
+    }
+```
+
+## 6. Key Flows
+
+### 1. The Booking & Payment Flow
+This is the most critical flow ensuring users can safely select seats, hold them, and pay without concurrency issues (double booking).
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Stripe
+    participant DB
+    
+    Client->>API: GET /api/movies/seat-layout/:movieId/:slotId
+    API->>DB: Fetch Slot & Booked Seats
+    DB-->>API: Return Available Seats
+    API-->>Client: Render Seat Layout
+    
+    Client->>API: POST /api/bookings/addBooking (Selected Seats)
+    API->>DB: Verify seat availability
+    API->>DB: Create Booking (status: pending)
+    API->>DB: Update Slot (add to bookedSeats)
+    DB-->>API: Return Booking Details
+    API-->>Client: Booking ID & Amount
+    
+    Client->>API: POST /api/payments/create-intent
+    API->>Stripe: Generate PaymentIntent
+    Stripe-->>API: client_secret
+    API-->>Client: return client_secret
+    
+    Client->>Stripe: Complete Payment directly
+    Stripe->>API: POST /api/webhooks/stripe (Payment Success)
+    API->>DB: Update Payment Status (succeeded)
+    API->>DB: Update Booking Status (confirmed)
+```
+
+### 2. Password Reset Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Email
+    participant DB
+
+    User->>API: POST /api/auth/forgot-password
+    API->>DB: Check if User exists
+    API->>DB: Generate & Store OTP
+    API->>Email: Send OTP via Nodemailer
+    
+    User->>API: POST /api/auth/verify-otp
+    API->>DB: Validate OTP
+    DB-->>API: Success
+    API-->>User: Reset Session Token
+    
+    User->>API: POST /api/auth/reset-password
+    API->>DB: Hash & Update new password
+    API-->>User: Success
+```
+
+## 7. API Documentation
+
+### Auth & Users (`/api/auth`)
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/register` | Public | Register a new user account. |
+| POST | `/login` | Public | Authenticate user and return JWT. |
+| POST | `/logout` | Bearer | Clear active session/token. |
+| GET | `/current-user` | Bearer | Get profile of logged-in user. |
+| POST | `/forgot-password` | Public | Request an OTP to email for password reset. |
+| POST | `/reset-password` | Public | Provide valid session to change password. |
+| GET | `/users` | Admin | Retrieve all users. |
+| PUT | `/users/:id/role` | Admin | Escalate or demote user roles. |
+
+### Movies (`/api/movies`)
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/allMovies` | Public | Get paginated list of movies. |
+| GET | `/getSpecificMovie/:id` | Public | Get detailed metadata for a movie. |
+| GET | `/search` | Public | Advanced search (queries, genres, years). |
+| GET | `/seat-layout/:movieId/:slotId` | Public | Get the layout and availability of seats for a slot. |
+| POST | `/addMovie` | Admin | Create a new movie record (supports Multer image uploads). |
+| PUT | `/updateMovie/:id` | Admin | Edit an existing movie. |
+
+### Bookings (`/api/bookings`)
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/addBooking` | Bearer | Create a new pending booking with selected seats. |
+| GET | `/userBookings/:userId` | Bearer | Get all bookings for a user (IDOR protected). |
+| PUT | `/cancelBookings/:bookingId` | Bearer | Cancel a pending/confirmed booking. |
+| GET | `/allBookings` | Admin | View all bookings across the system. |
+
+### Payments (`/api/payments` & Webhooks)
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/create-intent` | Bearer | Generate a Stripe PaymentIntent for a pending booking. |
+| POST | `/refund` | Admin | Process a refund for a cancelled ticket. |
+| POST | `/api/webhooks/stripe` | Stripe | Raw body endpoint for Stripe to asynchronously confirm payments. |
+
+## 8. Key Technical Decisions
+
+*   **Express 5.x Adoption:** The project utilizes Express v5. Because Express 5 makes `req.query` getter-only, traditional NoSQL injection middleware (`express-mongo-sanitize`) failed. The developers wisely implemented a custom sanitization middleware that targets `req.body` directly, demonstrating good adaptation to modern framework constraints.
+*   **Stripe Webhook Placement:** The Stripe webhook route (`/api/webhooks`) is explicitly declared *before* the global `express.json()` parser. This is a critical architectural necessity, as Stripe requires the raw, unparsed buffer to verify webhook cryptographic signatures.
+*   **Background Cleanup Jobs:** Instead of relying strictly on client-side timeouts, a background script (`cleanupService.ts`) is initialized on server start. It periodically sweeps the database for `pending` bookings that have exceeded their time limit, unblocking seats for other users.
+*   **Security Layers:** The API is heavily fortified. It implements generic Rate Limiting (`express-rate-limit`), with isolated, stricter limits applied specifically to sensitive endpoints like `/login` and `/forgot-password` to prevent brute-force and credential stuffing attacks. `helmet` is also configured for secure HTTP headers.
+
+## 🚀 Quick Start
+
+### Prerequisites
 - Node.js 18+
 - MongoDB 7+
 - Git
 
-### التثبيت
+### Installation
 
 ```bash
-# استنساخ المشروع
+# Clone the repository
 git clone https://github.com/your-username/cinema-booking-system.git
 cd cinema-booking-system/backend
 
-# تثبيت التبعيات
+# Install dependencies
 npm install
 
-# إعداد متغيرات البيئة
+# Setup environment variables
 cp .env.example .env
 ```
 
-### إعداد متغيرات البيئة
+### Environment Variables Setup
 
 ```env
 # Database
@@ -146,7 +316,7 @@ FORGOT_RATE_LIMIT_WINDOW_MS=3600000
 FORGOT_RATE_LIMIT_MAX=5
 ```
 
-### تشغيل المشروع
+### Running the Project
 
 ```bash
 # Development
@@ -156,331 +326,6 @@ npm run dev
 npm run build
 npm start
 ```
-
-## 📚 API Documentation
-
-### المسارات الرئيسية
-
-#### 🔐 Authentication Routes (`/api/auth`)
-
-- `POST /api/auth/register` - تسجيل مستخدم جديد
-- `POST /api/auth/login` - تسجيل الدخول
-- `POST /api/auth/logout` - تسجيل الخروج
-- `GET /api/auth/current-user` - جلب بيانات المستخدم الحالي
-- `POST /api/auth/forgot-password` - طلب إعادة تعيين كلمة المرور
-- `POST /api/auth/verify-otp` - التحقق من OTP
-- `POST /api/auth/reset-password` - إعادة تعيين كلمة المرور
-
-#### 🎬 Movies Routes (`/api/movies`)
-
-- `GET /api/movies/allMovies` - جلب جميع الأفلام مع ترقيم الصفحات
-- `POST /api/movies/addMovie` - إضافة فيلم جديد (Admin)
-- `PUT /api/movies/updateMovie/:id` - تحديث فيلم (Admin)
-- `DELETE /api/movies/deleteMovie/:id` - حذف فيلم (Admin)
-- `GET /api/movies/getSpecificMovie/:id` - جلب تفاصيل فيلم محدد
-- `GET /api/movies/search` - بحث متقدم في الأفلام
-- `GET /api/movies/genre/:genre` - الأفلام حسب التصنيف
-- `GET /api/movies/year/:year` - الأفلام حسب السنة
-- `GET /api/movies/person/:name/:role` - الأفلام حسب الشخص
-- `GET /api/movies/top-rated` - أفضل الأفلام تقييماً
-- `GET /api/movies/featured` - الأفلام المميزة
-- `GET /api/movies/autocomplete` - اقتراحات البحث
-- `GET /api/movies/latest-trailers` - أحدث المقاطع الدعائية
-- `GET /api/movies/by-date?date=YYYY-MM-DD` - جدولة الأفلام حسب التاريخ
-- `GET /api/movies/seat-layout/:movieId/:slotId` - تخطيط المقاعد للحجز
-- `GET /api/movies/seat-layout/:movieId/:slotId` - تخطيط المقاعد للحجز
-
-#### 🎫 Booking Routes (`/api/bookings`)
-
-- `POST /api/bookings/addBooking` - إنشاء حجز جديد
-- `GET /api/bookings/allBookings` - جلب جميع الحجوزات (Admin with pagination)
-- `GET /api/bookings/userBookings/:userId` - حجوزات مستخدم محدد
-- `PUT /api/bookings/updateBookings/:bookingId` - تحديث حجز
-- `PUT /api/bookings/confirmBookings/:bookingId` - تأكيد حجز
-- `PUT /api/bookings/cancelBookings/:bookingId` - إلغاء حجز
-- `PUT /api/bookings/priceBookings/:bookingId` - تحديث سعر التذكرة
-
-#### 📊 Admin Routes (`/api/admin`)
-
-- `GET /api/admin/dashboard-stats` - إحصائيات لوحة التحكم
-
-## 🗄️ Database Schema
-
-### User Schema
-
-```typescript
-{
-  fullName: String,
-  username: String (unique),
-  email: String (unique),
-  phoneNumber: String,
-  birthDate: Date,
-  password: String (hashed),
-  role: "user" | "admin",
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### Movie Schema
-
-```typescript
-{
-  title: String,
-  originalTitle: String,
-  description: String,
-  shortDescription: String,
-  poster: String,
-  trailer: {
-    url: String,
-    thumbnail: String,
-    duration: Number
-  },
-  genres: [String],
-  year: Number,
-  rating: Number (0-10),
-  duration: Number,
-  directors: [PersonSchema],
-  cast: [PersonSchema],
-  slots: [SlotSchema],
-  auditoriums: [String],
-  category: "now-showing" | "coming-soon" | "featured",
-  isActive: Boolean,
-  featured: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### Booking Schema
-
-```typescript
-{
-  movieId: ObjectId,
-  userId: ObjectId,
-  customer: String,
-  movie: {
-    id: ObjectId,
-    title: String,
-    poster: String,
-    rating: Number
-  },
-  showtime: String,
-  auditorium: String,
-  seats: [String],
-  totalPrice: Number,
-  status: "pending" | "confirmed" | "cancelled" | "refunded",
-  bookingReference: String,
-  paymentId: ObjectId,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-## 💺 نظام أنواع الكراسي المتقدم
-
-**نظام مرن لأنواع الكراسي** - يدعم أسعار مختلفة لكل نوع (VIP، Regular، Premium):
-
-### مميزات النظام:
-
-- **أنواع كراسي متعددة**: VIP، Regular، Premium مع أسعار مختلفة
-- **إدارة دقيقة للمقاعد**: عدد محدود لكل نوع
-- **عرض تفاعلي**: Seat Layout API لعرض المقاعد المتاحة
-- **حجز ذكي**: منع الحجز المزدوج وحساب السعر التلقائي
-- **إدارة تلقائية**: حساب إجمالي المقاعد والمتاحة من seatTypes
-
-### مثال على البيانات:
-
-```json
-{
-  "seatTypes": [
-    {
-      "type": "VIP",
-      "price": 250,
-      "totalSeats": 50,
-      "availableSeats": 45,
-      "label": "VIP Section - Front Rows"
-    },
-    {
-      "type": "Regular",
-      "price": 150,
-      "totalSeats": 100,
-      "availableSeats": 87,
-      "label": "Regular Seats"
-    },
-    {
-      "type": "Premium",
-      "price": 200,
-      "totalSeats": 30,
-      "availableSeats": 28,
-      "label": "Premium Seats - Middle Rows"
-    }
-  ],
-  "totalSeats": 180, // محسوب تلقائياً
-  "availableSeats": 160 // محسوب تلقائياً
-}
-```
-
----
-
-## 📅 جدولة الأفلام اليومية
-
-**Movies by Date API** - يعرض الأفلام المعروضة في تاريخ محدد مع مواعيدها والقاعات:
-
-#### استخدام:
-
-```javascript
-// جلب أفلام اليوم
-GET /api/movies/by-date
-
-// جلب أفلام تاريخ محدد
-GET /api/movies/by-date?date=2024-12-15
-```
-
-#### Response مثال:
-
-```json
-{
-  "statusMsg": "success",
-  "date": "2024-12-10",
-  "totalMovies": 3,
-  "movies": [
-    {
-      "id": "...",
-      "title": "Avengers: Endgame",
-      "poster": "https://...",
-      "rating": 8.4,
-      "schedule": {
-        "Auditorium 1": [
-          {
-            "time": "14:30",
-            "ampm": "PM",
-            "price": 150,
-            "availableSeats": 45,
-            "totalSeats": 100
-          }
-        ]
-      }
-    }
-  ]
-}
-```
-
----
-
-## 🎫 Seat Layout API
-
-**عرض تفاعلي للمقاعد** - يظهر المقاعد المتاحة والمحجوزة لكل عرض:
-
-#### استخدام:
-
-```javascript
-GET / api / movies / seat - layout / { movieId } / { slotId };
-```
-
-#### Response مثال:
-
-```json
-{
-  "statusMsg": "success",
-  "seatLayout": {
-    "movieId": "...",
-    "slotId": "...",
-    "movieTitle": "Avengers: Endgame",
-    "showtime": "14:30 PM",
-    "date": "2024-12-15T00:00:00.000Z",
-    "auditorium": "Auditorium 1",
-    "seatTypes": [
-      {
-        "type": "VIP",
-        "label": "VIP Section - Front Rows",
-        "price": 250,
-        "totalSeats": 50,
-        "availableSeats": ["V1A1", "V1A2", "V1A3", ...],
-        "bookedSeats": ["V1A5", "V1A6"]
-      },
-      {
-        "type": "Regular",
-        "label": "Regular Seats",
-        "price": 150,
-        "totalSeats": 100,
-        "availableSeats": ["R2B1", "R2B2", "R2B3", ...],
-        "bookedSeats": ["R2B5", "R2B7"]
-      }
-    ]
-  }
-}
-```
-
----
-
-## 🎨 لوحة الإدارة التحليلية
-
-### الإحصائيات المتاحة:
-
-- **الإحصائيات الأساسية**: الحجوزات، الإيرادات، المستخدمين، الأفلام
-- **تحليل المستخدمين**: المستخدمين الجدد والنشطين واتجاهات التسجيل
-- **تحليل الحجوزات**: متوسط القيمة، المقاعد المحجوزة، أوقات الذروة، معدل الإشغال
-- **تحليل الإيرادات**: الإيرادات اليومية/أسبوعية/شهرية والاتجاهات
-- **تحليل الأفلام**: الأكثر حجزاً والإيرادات ومعدل الإشغال
-- **تحليل التصنيفات**: أداء كل تصنيف فيلم
-- **النشاط الحديث**: آخر الحجوزات والمستخدمين والأفلام
-
-### إعداد الإنتاج
-
-1. **إعداد MongoDB**:
-
-   ```bash
-   # استخدم MongoDB Atlas أو قاعدة بيانات محلية
-   MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/cinema-prod
-   ```
-
-2. **إعداد Stripe**:
-
-   ```bash
-   # احصل على مفاتيح Stripe من لوحة التحكم
-   STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   ```
-
-3. **إعداد البريد الإلكتروني**:
-   ```bash
-   # استخدم Gmail أو خدمة بريد إلكتروني أخرى
-   GMAIL_USER=admin@cinema.com
-   GMAIL_APP_PASSWORD=app-specific-password
-   ```
-
-## 🎬 إضافة أفلام مع أنواع كراسي
-
-### مثال شامل لإضافة فيلم:
-
-```javascript
-// في Postman - POST /api/movies/addMovie
-// Headers: Authorization: Bearer YOUR_ADMIN_TOKEN
-
-// Form Data Fields:
-title = Avengers: Endgame
-description = After the devastating events of Avengers: Infinity War...
-duration = 181
-rating = 8.4
-year = 2019
-category = now-showing
-genres = ["Action", "Adventure", "Drama", "Sci-Fi"]
-directors = [{"name": "Anthony Russo", "role": "Director"}]
-cast = [{"name": "Robert Downey Jr.", "role": "Tony Stark"}]
-auditoriums = ["Auditorium 1", "Auditorium 2"]
-slots = [{"date": "2024-12-15", "time": "14:30", "ampm": "PM", "seatTypes": [{"type": "VIP", "price": 250, "totalSeats": 50, "availableSeats": 50, "label": "VIP Section"}, {"type": "Regular", "price": 150, "totalSeats": 100, "availableSeats": 100, "label": "Regular Seats"}]}]
-poster = [Upload image file]
-```
-
-### ملفات جاهزة:
-
-- `movie-data.json` - البيانات كاملة بتنسيق JSON
-- `movie-formdata.txt` - البيانات جاهزة للنسخ في Postman
-
-## 🙏 شكر وتقدير
-
-شكراً لجميع المساهمين والمطورين الذين ساهموا في تطوير هذا النظام!
 
 ---
 
